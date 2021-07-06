@@ -1,0 +1,2 @@
+When using this dataset please use the following citation and pay attention to the rights documented in rights.txt:
+Ueda K (2021). iNaturalist Research-grade Observations. iNaturalist.org. Occurrence dataset https://doi.org/10.15468/ab3s5x accessed via GBIF.org on 2021-07-06.
