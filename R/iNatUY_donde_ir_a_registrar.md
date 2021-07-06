@@ -60,11 +60,11 @@ oscuras, y registros que no han sido indentificados a nivel de especie.
 
 ## Análisis
 
-Calculamos las siguientes métricas por grilla: - La densidad de
-registros (como el número de observaciones) - La riqueza de especies (el
-número de especies) - El último año en el que se observó un organismo -
-La densidad temporal de los registros (como la cantidad de años con
-registros)
+Calculamos las siguientes métricas por grilla:  
+- La densidad de registros (como el número de observaciones) - La
+riqueza de especies (el número de especies) - El último año en el que se
+observó un organismo - La densidad temporal de los registros (como la
+cantidad de años con registros)
 
 Todos estos valores se re-escalaron a valores entre 0 y 1.
 

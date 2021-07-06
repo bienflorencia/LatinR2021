@@ -71,7 +71,7 @@ iNatUY_GIS <- iNatUY %>%
 
 ## Análisis
 
-Calculamos las siguientes métricas por grilla:
+Calculamos las siguientes métricas por grilla:  
   - La densidad de registros (como el número de observaciones)
   - La riqueza de especies (el número de especies)
   - El último año en el que se observó un organismo
