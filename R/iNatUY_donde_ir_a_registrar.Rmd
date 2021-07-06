@@ -2,7 +2,7 @@
 title: "Donde ir a Naturalistear"
 author: "Florencia Grattarola"
 date: "06/07/2021"
-output: html_document
+output: md_document
 ---
 
 ```{r setup, include=FALSE}
