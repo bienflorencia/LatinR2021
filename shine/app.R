@@ -2,7 +2,7 @@ library(shiny)
 library(leaflet)
 library(tidyverse)
 library(sf)
-library(maptools)
+# library(maptools)
 
 # setwd("R/MapaGini/")
 
@@ -12,6 +12,10 @@ datos <-
   grid_iNatUY_GIS %>% 
   mutate(indice_prioridad = temporalIntensity + spatialIntensity) %>% 
   select(-spsList) %>% 
+  st_transform(crs = 4326)
+
+Uruguay <- 
+  read_sf('../data/Uruguay.shp') %>% 
   st_transform(crs = 4326)
 
 ui <- fluidPage(
@@ -75,13 +79,19 @@ server <- function(input, output) {
                     bins = 8)
     
     # Comandos para renderear la apariecia el mapa:
-    leaflet(datos) %>%
+    leaflet() %>%
       addProviderTiles(providers$Esri.WorldImagery,
                        options = providerTileOptions(noWrap = TRUE)) %>% 
-      setView(lng = -56.04, lat = -32.6, zoom = 7) %>% 
+      # setView(lng = -56.04, lat = -32.6, zoom = 7) %>% 
+      clearBounds() %>% 
       addPolygons(
-        # data = datos, 
-        weight = 2, 
+        data = Uruguay, fillColor = NA, weight = 2, color = 'black',
+        fillOpacity = 0,
+      ) %>% 
+      addPolygons(
+        color = 'white',
+        data = datos,
+        weight = .5, 
         fillColor = ~pal(indice_prioridad),
         fillOpacity = .5,
         popup = popup,
@@ -89,6 +99,7 @@ server <- function(input, output) {
                                             weight = 2, 
                                             bringToFront = TRUE)
         )
+
     })
   
   # Preparar la tabla para la app:
