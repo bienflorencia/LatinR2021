@@ -2,9 +2,7 @@
 title: "Visualización interactiva"
 author: "JMB"
 date: "7/14/2021"
-output: 
-  html_document: 
-    keep_md: yes
+output: md_document
 ---
 
 ```{r setup, include=FALSE}
