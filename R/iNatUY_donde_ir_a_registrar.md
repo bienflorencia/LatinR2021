@@ -95,7 +95,28 @@ registros (como el número de observaciones) `spatialIntensity` (Fig.
 
 ### Pendiente de el último 10% de la curva de accumulación de especies
 
-    grid_iNatUY_GIS %>% st_drop_geometry() %>% 
+    get_gridsSlopes <- function(data_abundance){
+      GridSlope <- data.frame(Grid=integer(), Slope=numeric(), stringsAsFactors=FALSE)
+      data_abundance <- as.data.frame(data_abundance) 
+      data_abundance$abundance <- as.integer(1)
+      cells <- unique(data_abundance$grid_ID)
+      splistT <- list()
+      spaccum <- list()
+      slope <- list()
+      for (i in cells) {
+        splist <- data_abundance[data_abundance$grid_ID == i,c(2:4)]
+        splistT[[i]] = data2mat(splist) 
+        spaccum[[i]] = specaccum(splistT[[i]], method = "exact")
+        slope[[i]] = (spaccum[[i]][[4]][length(spaccum[[i]][[4]])]-
+                        spaccum[[i]][[4]][ceiling(length(spaccum[[i]][[4]])*0.9)])/
+          (length(spaccum[[i]][[4]])- ceiling(length(spaccum[[i]][[4]])*0.9))
+        GridSlope_i <- data.frame(Grid=i, Slope=slope[[i]], stringsAsFactors=FALSE)
+        GridSlope <- rbind(GridSlope, GridSlope_i)
+      }  
+      return(GridSlope)
+    }
+
+    grid_iNatUY_GIS_abundance <- grid_iNatUY_GIS %>% st_drop_geometry() %>% 
       mutate(Species=str_split(spsList, ';')) %>% 
       unnest(Species) %>% 
       group_by(spsList) %>% mutate(Sample = row_number()) %>% 
@@ -103,20 +124,11 @@ registros (como el número de observaciones) `spatialIntensity` (Fig.
       mutate(Sample=ifelse(is.na(Species), 0 , Sample)) %>% 
       select(grid_ID, Sample, Species)
 
-    ## # A tibble: 17,082 x 3
-    ##    grid_ID Sample Species                      
-    ##      <int>  <int> <chr>                        
-    ##  1       1      1 Artemisia vulgaris           
-    ##  2       1      2 Agelaioides badius           
-    ##  3       1      3 Ortilia ithra                
-    ##  4       1      4 Lepidocolaptes angustirostris
-    ##  5       1      5 Astylus quadrilineatus       
-    ##  6       1      6 Ortilia velica               
-    ##  7       1      7 Ardea cocoi                  
-    ##  8       1      8 Ortilia velica               
-    ##  9       1      9 Tegosa claudina              
-    ## 10       1     10 Turdus amaurochalinus        
-    ## # … with 17,072 more rows
+    # grid_iNatUY_GIS_slope <- get_gridsSlopes(grid_iNatUY_GIS_abundance)
+
+    # grid_iNatUY_GIS <- left_join(grid_iNatUY_GIS, 
+    #                              grid_iNatUY_GIS_slope %>% rename(grid_ID=Grid, sacSlope=Slope), 
+    #                              by='grid_ID') 
 
 ## Índice
 
