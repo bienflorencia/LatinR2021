@@ -1,8 +1,13 @@
 ---
 title: "Visualización interactiva"
+subtitle: "Experimental!"
 author: "JMB"
 date: "7/14/2021"
-output: md_document
+output: 
+  html_document: 
+    keep_md: yes
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -10,80 +15,276 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(sf)
 library(leaflet)
-Uruguay <- read_sf('../data/Uruguay.shp') %>% st_transform(crs = 4326)
+Uruguay <- read_sf('../data/Uruguay.shp')
+iNatUY <- read_csv('../data/observations-175157.csv', guess_max = 25000)
 ```
 
+_Inputs y paquetes_
+
 ```r
-Uruguay <- 
-  geouy::load_geouy(c = "Dptos") %>% 
-  st_transform(crs = 4326)
+library(tidyverse)
+library(sf)
+library(leaflet)
+Uruguay <- geouy::load_geouy(c = "Dptos")
+iNatUY  <- read_csv('../data/observations-175157.csv', guess_max = 25000)
 ```
 
 - - -
 
-### Visualizador interactivo (experimental!)
+# Visualizador interactivo (experimental!)
 
-Cargar los datos previamente preparados (ver [iNatUY_donde_ir_a_registrar](iNatUY_donde_ir_a_registrar.md))
+Para ver completo: [descargar versión HTML de este documento](iNatUY_donde_ir_a_registrar_viz.html) y abrir con un navegador.
+
+Este [tutorial](https://rstudio.github.io/leaflet/choropleths.html) puede ser instructivo.
+
+## Funciones
 
 ```{r}
-load('../data/grid_iNatUY_GIS.RData')
+#' Columnas iNat a camelCase
+#'
+#' @param string Ejemplo: 'taxon_family_name'
+#'
+#' @return string pero en camelCase en vez de separar palabras con '_'
+#' @export
+#'
+#' @examples
+#' renombra('scientific_name')   # scientificName
+#' renombra('taxon_family_name') # taxonFamilyName
+renombra <- function(string) {
+  R.utils::toCamelCase(gsub('_', ' ', string))
+}
+
+#' Cantidad de especies nuevas
+#'
+#' @param nuevas Muestra nueva de especies
+#' @param viejas Muestra vieja de especies
+#'
+#' @return integer. Número de especies nuevas
+#' @export
+#'
+#' @examples
+#' nuevas_spp(c('a', 'c', 'f'), c('a', 'a', 'c', 'b', 'c'))
+nuevas_spp <- function(nuevas, viejas) {
+  un <- unique(nuevas)
+  uv <- unique(viejas)
+  out <- length(un) - sum(un %in% uv)
+  return(out)
+}
 ```
 
-Manipular los datos un poco:
+## Grilla
+
+((paso pesado)) 
+
+```{r, cache=TRUE}
+grid_Uruguay <- 
+  sf::st_make_grid(x = Uruguay, cellsize = 25000, square = F)  %>% 
+  st_intersection(.,st_union(Uruguay)) %>% 
+  st_as_sf() %>% 
+  mutate(grid_ID = 1:nrow(.))
+```
+
+## Cálculos de los índices e indicadores:
+
+```{r}
+last_date <- max(iNatUY$observed_on, na.rm = TRUE)
+
+iNatUY_GIS <- iNatUY %>% 
+  mutate(year = lubridate::year(observed_on),
+         last_year = observed_on + 365 >= last_date) %>% 
+  filter(captive_cultivated == FALSE,
+         coordinates_obscured == FALSE) %>% 
+  filter(!is.na(taxon_species_name)) %>% 
+  select(observed_on, year, last_year,
+         scientifiName = scientific_name, 
+         class = taxon_class_name, 
+         order = taxon_order_name, 
+         family = taxon_family_name, 
+         genus = taxon_genus_name, 
+         species = taxon_species_name,
+         decimalLatitude = latitude, 
+         decimalLongitude = longitude, 
+         coordinatePrecision = positional_accuracy, 
+         public_positional_accuracy, 
+         iconic_taxon_name) %>% 
+  sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude")) %>% 
+  st_set_crs(4326) %>% 
+  st_transform(32721)
+```
+
+Columna `last_year`: creada para establecer algunos indicadores relacionados a la acumulación de observaciones y registros del último año.
+
+- - -
+
+### OTRAS IDEAS: 
+
+> CANTIDAD DE ESPECIES ÚNICAS EN ESA GID
+
+> ÍNDICE DE RAREZA DE ESPECIES DE UN ID? DIVERSIDAD ALFA/BETA/GAMA??
+
+> ÍNDICE DE REPETICIÓN DE ESPECIES??
+
+> REFERENCIA DE LOCALIDADES PARA CADA GID? ((ES DIFÍCIL))
+
+- - - 
+
+Continuando con la creación del mapa-widget:
+
+```{r}
+# JOIN espacial:
+grid_join <- st_join(x = grid_Uruguay,
+                     y = iNatUY_GIS %>%
+                       select(species, class, family, year, last_year),
+                     left = TRUE, join = st_contains)
+# saveRDS(grid_join, 'data/grid_join.rds')
+
+grid_iNatUY_GIS <-
+  grid_join %>%
+  group_by(grid_ID) %>% 
+  # Indicadores:
+  summarise(
+    spatialIntensity = ifelse(n_distinct(species, na.rm = TRUE), n(), 0),
+    temporalIntensity = n_distinct(year, na.rm = TRUE),
+    spsList = paste(species, collapse = ';'),
+    speciesRichness = n_distinct(species, na.rm = TRUE), 
+    lastYearRecorded = ifelse(spatialIntensity, max(year, na.rm = TRUE), NA),
+    nObservationsLastYear = sum(last_year),
+    propObservationsLastYear = nObservationsLastYear / n(),
+    speciesRichnessLastYear = n_distinct(species[last_year], na.rm = TRUE),
+    nNewSpeciesLastYear = nuevas_spp(species[last_year], species[!last_year]),
+    propNewSpeciesLastYear = nNewSpeciesLastYear / speciesRichness) %>% 
+  ungroup() %>% 
+  # Reescalamientos:
+  mutate(spatialIntensity = ifelse(spatialIntensity, 
+                                   scales::rescale(spatialIntensity, to = 1:0), 
+                                   NA),
+         lastYearRecorded = scales::rescale(lastYearRecorded, to = 0:1),
+         temporalIntensity = ifelse(temporalIntensity,
+                                    scales::rescale(temporalIntensity, to = 1:0),
+                                    NA),
+         indice_prioridad = 
+           scales::rescale(temporalIntensity + spatialIntensity, to = 0:1),
+         ranking = rank(indice_prioridad, 
+                        ties.method = 'max', 
+                        na.last = TRUE) %>% 
+           scales::rescale(to = 1:0) %>% 
+           ifelse(is.na(indice_prioridad), NA, .))
+         # ranking = replace_na(ranking, 1))
+
+```
+
+Manipular los datos un poco más, y guardar como `datos`, para simplificar código
 
 ```{r}
 datos <- 
   grid_iNatUY_GIS %>% 
-  mutate(indice_prioridad = 
-           scales::rescale(temporalIntensity + spatialIntensity, to = 0:1),
-         indice_prioridad = replace_na(indice_prioridad, 1)) %>% 
   select(-spsList) %>% 
   st_transform(crs = 4326)
 ```
 
-El objeto popup es un vector character con el código HTML
+## Widget
 
 ```{r}
-popup <- paste0("<strong>GridID: </strong>", 
-                datos$grid_ID, 
-                "<br><strong>Índice de prioridad: </strong>", 
-                round(datos$indice_prioridad, 2))
-```
+# El objeto popup es un vector character con el código HTML
+popup <- paste0(
+  "<strong>GridID: </strong>", 
+  datos$grid_ID, 
+  "<br><strong>Ranking: </strong>", 
+  replace_na(round(100 * datos$ranking, 1), 0), "%",
+  "<br><strong>Índice de prioridad: </strong>", 
+  replace_na(round(datos$indice_prioridad, 2), 1),
+  "<br><strong>Especies registradas: </strong>", 
+  datos$speciesRichness,
+  "<br><strong>Especies registradas en el último año: </strong>",
+  datos$speciesRichnessLastYear,
+  "<br><strong>Especies nuevas, en el último año: </strong>",
+  datos$nNewSpeciesLastYear,
+  " (", round(100 * datos$propNewSpeciesLastYear, 1), " %)",
+  "<br><strong>Observaciones en el último año: </strong>",
+  datos$nObservationsLastYear,
+  " (", round(100 * datos$propObservationsLastYear, 1), " %)"
+                )
 
-Objeto (función) para determinar el coloreado de los deptos
+# Proyecto de label para efecto 'mouseover'. Descartado por obstruir la vista:
+# mover <- paste0("<strong>Especies registradas: </strong>", 
+#                 datos$speciesRichness)
 
-```{r}
-pal <- colorBin(palette = "RdYlGn", 
-                reverse = TRUE,
-                # na.color = "#79002d",
-                domain = datos$indice_prioridad, 
-                bins = 8)
-```
+# Objeto (función) para determinar el coloreado de los deptos
+# pal <- colorBin(palette = "RdYlGn",
+#                 reverse = FALSE,
+#                 na.color = "#4d0012",
+#                 domain = datos$ranking,
+#                 bins = 8)
 
-El visualizador (widget)
+# # Otras opciones para la paleta:
+# # Esta no me funciona:
+pal <- colorQuantile("RdYlGn", datos$ranking, n = 7, 
+                     na.color = "#4d0012",
+                     reverse = FALSE)
+# # (https://github.com/rstudio/leaflet/issues/94)
 
-```{r}
-leaflet() %>%
-  addProviderTiles(providers$Esri.WorldImagery,
-                   options = providerTileOptions(noWrap = TRUE)) %>% 
+# # Parecida, pero con valores continuos:
+# pal <- colorNumeric("RdYlGn", reverse = TRUE,
+#                     # c("green", "yellow", "red"),
+#                     datos$ranking)
+
+# El widget de leaflet:
+# mapita <-
+leaflet(datos) %>%
   clearBounds() %>% 
+  addTiles(group = "Open Street Map") %>% 
+  addProviderTiles(providers$OpenTopoMap,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Open Topo Map') %>%
+  addProviderTiles(providers$Esri.WorldImagery,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Imagen') %>%
+  # addProviderTiles(providers$Stamen.TonerLines,
+  #                  # options = providerTileOptions(noWrap = TRUE),
+  #                  group = 'Transporte') %>%
+  # addProviderTiles(providers$Stamen.TonerLabels,
+  #                  # options = providerTileOptions(noWrap = TRUE),
+  #                  group = 'Transporte') %>%
+  # # Descartado porque con OSM ya están los departamentos:
+  # addPolygons(
+  #   data = st_transform(Uruguay, crs = 4326), 
+  #   fillColor = NA, 
+  #   weight = 2, 
+  #   color = 'black',
+  #   fillOpacity = 0,
+  #   group = 'Departamentos',
+  # ) %>% 
   addPolygons(
-    data = st_transform(Uruguay, crs = 4326), 
-    fillColor = NA, 
-    weight = 2, 
-    color = 'black',
-    fillOpacity = 0,
-  ) %>% 
-  addPolygons(
-    data = datos,
     weight = .5, 
     color = 'white',
-    fillColor = ~pal(indice_prioridad),
+    fillColor = ~pal(ranking),
     fillOpacity = .5,
     popup = popup,
+    # label = mover, # Opción "mouse-over"
     highlightOptions = highlightOptions(color = "white", 
-                                        weight = 2, 
-                                        bringToFront = TRUE)
-  )
+                                        weight = 5, 
+                                        fillOpacity = .8,
+                                        bringToFront = TRUE),
+    group = "Grilla"
+  ) %>% 
+  # Control de capas:
+  addLayersControl(
+    baseGroups = c("Open Street Map", "Open Topo Map", "Imagen"),
+    overlayGroups = c("Grilla"), # "Transporte"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>% 
+  # Leyenda de índice de prioridad
+  addLegend(pal = pal, values = ~ranking, opacity = .5,
+            na.label = 'Sin registros',
+            position = 'bottomright', title = 'Ranking', # bins = 8,
+            group = 'Grilla') %>% 
+    hideGroup("Transporte")
+
+# print(mapita)
+
+# # Obtener datos a partir de 'mapita':
+# a <- attr(mapita$x, which = 'leafletData')
+# identical(datos, a) # TRUE
+# saveRDS(mapita, 'data/mapita.rds')
 ```
 
