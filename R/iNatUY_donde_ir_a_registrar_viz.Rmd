@@ -17,6 +17,7 @@ library(sf)
 library(leaflet)
 Uruguay <- read_sf('../data/Uruguay.shp')
 iNatUY <- read_csv('../data/observations-175157.csv', guess_max = 25000)
+source('../R/funciones_jm.R', encoding = 'UTF-8', local = TRUE)
 ```
 
 _Inputs y paquetes_
@@ -27,6 +28,7 @@ library(sf)
 library(leaflet)
 Uruguay <- geouy::load_geouy(c = "Dptos")
 iNatUY  <- read_csv('../data/observations-175157.csv', guess_max = 25000)
+source('../R/funciones_jm.R', encoding = 'UTF-8', local = TRUE)
 ```
 
 - - -
@@ -135,7 +137,9 @@ Continuando con la creación del mapa-widget:
 # JOIN espacial:
 grid_join <- st_join(x = grid_Uruguay,
                      y = iNatUY_GIS %>%
-                       select(taxon_id, species, class, family, year, last_year),
+                       select(taxon_id, species, class, family, 
+                              observed_on, year, last_year,
+                              iconic_taxon_name),
                      left = TRUE, join = st_contains)
 # saveRDS(grid_join, 'data/grid_join.rds')
 
@@ -287,5 +291,29 @@ leaflet(datos) %>%
 # a <- attr(mapita$x, which = 'leafletData')
 # identical(datos, a) # TRUE
 # saveRDS(mapita, 'data/mapita.rds')
+```
+
+
+# Curvas de acumulación x grupos Icónicos
+
+La curva de acumulación es casera estilo JM, no tiene mucho rigor académico.
+Para que quede la gráfica javascript interactiva, es necesario el paquete
+[`plotly`](https://plotly.com/r/)
+
+```{r}
+p <- grid_join %>%
+  st_drop_geometry() %>%
+  arrange(observed_on) %>%
+  filter(!is.na(taxon_id), !is.na(iconic_taxon_name)) %>% 
+  group_by(iconic_taxon_name) %>%
+  mutate(c_acum = curva_acum_jm(family),
+         n_obs = row_number()) %>%
+  ggplot() +
+  aes(n_obs, c_acum, color = iconic_taxon_name) +
+  geom_line() +
+  ylab('# Familias') + 
+  xlab('# Observaciones')
+
+plotly::ggplotly(p) # Fancy! (interactivo / javascript)
 ```
 

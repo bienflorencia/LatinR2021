@@ -20,6 +20,7 @@ library(sf)
 library(leaflet)
 Uruguay <- geouy::load_geouy(c = "Dptos")
 iNatUY  <- read_csv('../data/observations-175157.csv', guess_max = 25000)
+source('../R/funciones_jm.R', encoding = 'UTF-8', local = TRUE)
 ```
 
 - - -
@@ -92,6 +93,7 @@ iNatUY_GIS <- iNatUY %>%
          coordinates_obscured == FALSE) %>% 
   filter(!is.na(taxon_species_name)) %>% 
   select(observed_on, year, last_year,
+         taxon_id,
          scientifiName = scientific_name, 
          class = taxon_class_name, 
          order = taxon_order_name, 
@@ -131,7 +133,9 @@ Continuando con la creación del mapa-widget:
 # JOIN espacial:
 grid_join <- st_join(x = grid_Uruguay,
                      y = iNatUY_GIS %>%
-                       select(species, class, family, year, last_year),
+                       select(taxon_id, species, class, family, 
+                              observed_on, year, last_year,
+                              iconic_taxon_name),
                      left = TRUE, join = st_contains)
 # saveRDS(grid_join, 'data/grid_join.rds')
 
@@ -140,15 +144,15 @@ grid_iNatUY_GIS <-
   group_by(grid_ID) %>% 
   # Indicadores:
   summarise(
-    spatialIntensity = ifelse(n_distinct(species, na.rm = TRUE), n(), 0),
+    spatialIntensity = ifelse(n_distinct(taxon_id, na.rm = TRUE), n(), 0),
     temporalIntensity = n_distinct(year, na.rm = TRUE),
     spsList = paste(species, collapse = ';'),
-    speciesRichness = n_distinct(species, na.rm = TRUE), 
+    speciesRichness = n_distinct(taxon_id, na.rm = TRUE), 
     lastYearRecorded = ifelse(spatialIntensity, max(year, na.rm = TRUE), NA),
     nObservationsLastYear = sum(last_year),
     propObservationsLastYear = nObservationsLastYear / n(),
-    speciesRichnessLastYear = n_distinct(species[last_year], na.rm = TRUE),
-    nNewSpeciesLastYear = nuevas_spp(species[last_year], species[!last_year]),
+    speciesRichnessLastYear = n_distinct(taxon_id[last_year], na.rm = TRUE),
+    nNewSpeciesLastYear = nuevas_spp(taxon_id[last_year], taxon_id[!last_year]),
     propNewSpeciesLastYear = nNewSpeciesLastYear / speciesRichness) %>% 
   ungroup() %>% 
   # Reescalamientos:
@@ -167,6 +171,7 @@ grid_iNatUY_GIS <-
            scales::rescale(to = 1:0) %>% 
            ifelse(is.na(indice_prioridad), NA, .))
          # ranking = replace_na(ranking, 1))
+# save(grid_iNatUY_GIS, file = 'data/grid_iNatUY_GIS.RData')
 ```
 
 Manipular los datos un poco más, y guardar como `datos`, para simplificar código
@@ -279,7 +284,7 @@ leaflet(datos) %>%
     hideGroup("Transporte")
 ```
 
-preserve1fd1cae5a64edc82
+preserve3e7df97513cc0a8d
 
 ```r
 # print(mapita)
@@ -289,4 +294,31 @@ preserve1fd1cae5a64edc82
 # identical(datos, a) # TRUE
 # saveRDS(mapita, 'data/mapita.rds')
 ```
+
+
+# Curvas de acumulación x grupos Icónicos
+
+La curva de acumulación es casera estilo JM, no tiene mucho rigor académico.
+Para que quede la gráfica javascript interactiva, es necesario el paquete
+[`plotly`](https://plotly.com/r/)
+
+
+```r
+p <- grid_join %>%
+  st_drop_geometry() %>%
+  arrange(observed_on) %>%
+  filter(!is.na(taxon_id), !is.na(iconic_taxon_name)) %>% 
+  group_by(iconic_taxon_name) %>%
+  mutate(c_acum = curva_acum_jm(family),
+         n_obs = row_number()) %>%
+  ggplot() +
+  aes(n_obs, c_acum, color = iconic_taxon_name) +
+  geom_line() +
+  ylab('# Familias') + 
+  xlab('# Observaciones')
+
+plotly::ggplotly(p) # Fancy! (interactivo / javascript)
+```
+
+preserve01fbb3d469f9c4d5
 
