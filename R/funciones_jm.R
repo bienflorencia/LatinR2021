@@ -3,6 +3,21 @@
 ##
 ## FLO! Abajo puse funciones con documentación roxygen que estoy acostumbrado.
 ##
+## Hice una función casera para las curvas de acumulación más básicas del mundo
+## creo. Lo bueno es que se puede acoplar bien a un group_by + mutate.
+##
+## También cambié la función tuya por un par de funciones mías, más chicas...
+##
+## get_acc hace el spaccum para un vector de observaciones (ver abajo la
+## documentación)
+##
+## get_slope hace el cálculo de la pendiente en el tramo final, tomando como
+## input el output de get_acc
+##
+## La idea es que estas dos trabajarían bien con group_by + summarise o con nest
+## + mutate + purrr::map... en fin. Puse muchos ejemplos en pruebas_jm.R y mismo
+## en la documentación de esas funciones (aunque más abstractos).
+##
 ## Algo bonito que tiene RStudio es que en la parte de los ejemplos, donde hay
 ## código, si das Ctrl+Enter se ejecuta la línea en la que está el mouse (o lo
 ## que esté sombreado, igual que en cualquier script).
@@ -63,38 +78,72 @@ curva_acum_jm <- function(taxon_obs) {
   return(out)
 }
 
-#' Cálculo de 'completeness'
+#' Curva de acumulación con vegan::specaccum
 #'
-#' The function ```get_gridsSlopes``` finds a species accumulation curve (SAC)
-#' for each grid-cell using the method ‘exact’ of the function ```specaccum```
-#' of the vegan package and then calculates the degree of curvilinearity as the
-#' mean slope of the last 10% of the curve.
-#' 
-#' @param data_abundance data.frame with abundance data
+#' Toma un vector de observaciones de taxones y devuelve la curva de acumulación
+#' que genera la función \code{\link[vegan]{specaccum}}. Conceptualmente es
+#' igual que en \code{curva_acum_jm}
 #'
-#' @return
+#' @param taxon_obs observaciones de las categorías. Puede ser de varios tipos,
+#'   hice pruebas con character y numeric hasta ahora, solamente.
+#' @param method ver \code{\link[vegan]{specaccum}}
+#'
+#' @return Objeto \code{\link[vegan]{specaccum}}: una Species Accumulation Curve
+#'   (SAC).
 #' @export
 #'
 #' @examples
-get_gridsCompleteness <- function(data_abundance){
-  GridSlope <- data.frame(Grid=integer(), Slope=numeric(), stringsAsFactors=FALSE)
-  data_abundance <- as.data.frame(data_abundance) 
-  data_abundance$abundance <- as.integer(1)
-  cells <- unique(data_abundance$GridID)
-  splistT <- list()
-  spaccum <- list()
-  slope <- list()
-  for (i in cells) {
-    splist <- data_abundance[data_abundance$GridID == i,c(2:4)]
-    splistT[[i]] = data2mat(splist) 
-    spaccum[[i]] = specaccum(splistT[[i]], method = "exact")
-    slope[[i]] = (spaccum[[i]][[4]][length(spaccum[[i]][[4]])]-
-                    spaccum[[i]][[4]][ceiling(length(spaccum[[i]][[4]])*0.9)])/
-      (length(spaccum[[i]][[4]])- ceiling(length(spaccum[[i]][[4]])*0.9))
-    GridSlope_i <- data.frame(Grid=i, Slope=slope[[i]], stringsAsFactors=FALSE)
-    GridSlope <- rbind(GridSlope, GridSlope_i)
-  }
-  return(GridSlope)
+#' obs <- sample(letters, size = 100, replace = TRUE)
+#' sac <- get_acc(obs)
+#' s <- get_slope(sac)
+#' plot(sac, main = paste0('Acumulación de Riqueza de letras\n',
+#'                         'pendiente final: ', round(s, 3)))
+#' N <- length(sac$richness)
+#' emax <- sac$richness[N]
+#' abline(emax - s * N, s, col = 'red', lwd = 2)
+get_acc <- function(taxon_obs, method = 'exact') {
+  N <- length(taxon_obs)
+  K <- ceiling(N * .9)
+  spmat <- tibble::tibble(plots = 1:N, taxon_obs = taxon_obs, n = 1L) %>%
+    tidyr::pivot_wider(plots, names_from = taxon_obs, values_from = n,
+                       values_fill = list(n = 0))
+  return(vegan::specaccum(spmat, method = method))
+}
+
+#' Pendiente final de SAC
+#'
+#' @param sac objeto del tipo \code{\link[vegan]{specaccum}}
+#' @param last_perc proporción final de la curva usada para calcular la
+#'   pendiente
+#'
+#' @return Un número correspondiente a la pendiente en el tramo final de la SAC
+#' @export
+#'
+#' @examples
+#' d <- tibble(
+#'   grid_ID = sample(1:4, size = 1000, replace = TRUE),
+#'   iconic_taxon_name = sample(LETTERS[1:10], size = 1000, replace = TRUE),
+#'   species = sample(letters, size = 1000, replace = TRUE)
+#'   )
+#' d %>%
+#'   group_by(grid_ID, iconic_taxon_name) %>%
+#'   summarise(slope = get_acc(species) %>% get_slope)
+#'   
+#' dacc <- d %>%
+#'   # filter(grid_ID %in% 1:2) %>% 
+#'   group_by(grid_ID, iconic_taxon_name) %>%
+#'   nest() %>%
+#'   mutate(acc = purrr::map(data, function(x) get_acc(x$species))) %>% 
+#'   select(-data) %>% 
+#'   ungroup()
+#' filter(dacc, grid_ID == 3, iconic_taxon_name == 'C')$acc[[1]] %>% 
+#'   plot
+get_slope <- function(sac, last_perc = .1) {
+  s <- sac$richness
+  N <- length(s)
+  K <- ceiling(N * (1 - last_perc))
+  out <- (s[N]- s[K]) / (N - K)
+  return(out)
 }
 
 #' Cantidad de especies nuevas
