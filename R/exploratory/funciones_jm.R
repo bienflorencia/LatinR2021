@@ -298,3 +298,56 @@ nuevas_spp <- function(nuevas, viejas) {
   out <- length(un) - sum(un %in% uv)
   return(out)
 }
+
+#' Popup maker
+#'
+#' El objeto popup es un vector character con el código HTML usado al hacer
+#' click en un hexágono.
+#'
+#' @param datos Tabla con los datos. Espera la presencia de varias columnas
+#' @param grupo Grupo taxonómico para el que corresponden los datos
+#'
+#' @return Vector character con código HTML
+#' @export
+#'
+#' @examples
+mkpopup <- function(datos, grupo = "Todos") {
+  
+  # grupos aceptados:
+  grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae", "Mollusca",
+            "Insecta", "Arachnida", "Fungi", "Reptilia", "Actinopterygii",
+            "Chromista", "Protozoa")
+  
+  if (!(tolower(grupo) %in% tolower(grac))) 
+    stop("grupo debe ser alguno de los aceptados:\n", 
+         stringr::str_wrap(paste(grac, collapse = ', '), 
+                           80, indent = 2, exdent = 2))
+
+  grupo_html <- paste0("<strong>Grupo: </strong>", 
+                       stringr::str_to_title(grupo),
+                       "<br>")
+  
+  gr <- NULL
+  gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
+
+  cols_base <- c('grid_id', 'ranking', 'indice_prioridad', 'species_richness',
+                 'n_new_species_last_year', 'prop_new_species_last_year')
+  d <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
+  names(d) <- cols_base
+  
+  out <- paste0(
+    grupo_html,
+    "<strong>Grid ID: </strong>", 
+    d$grid_id, 
+    "<br><strong>Ranking: </strong>", 
+    replace_na(round(100 * d$ranking, 1), 0), "%",
+    "<br><strong>Índice de prioridad: </strong>", 
+    replace_na(round(d$indice_prioridad, 2), 1),
+    "<br><strong>Especies registradas: </strong>", 
+    d$species_richness,
+    "<br><strong>Especies nuevas, en el último año: </strong>",
+    d$n_new_species_last_year,
+    " (", round(100 * d$prop_new_species_last_year, 1), 
+    " %)")
+  return(out)
+}

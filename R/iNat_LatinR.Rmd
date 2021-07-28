@@ -45,6 +45,109 @@ La grilla de datos fue usada como base para crear una app en Shiny, usando los p
 ## Funciones
 
 ```{r}
+#' Sustituta de leaflet::colorQuantile
+#'
+#' Evita un error frecuente (ver: https://github.com/rstudio/leaflet/issues/94)
+#'
+#' Ver \code{\link[leaflet]{colorQuantile}} para más información de cómo usar
+#'   la función.
+colorQuantile_hacked <- function (palette, domain, n = 4,
+                                  probs = seq(0, 1, length.out = n + 1), 
+                                  na.color = "#808080", 
+                                  alpha = FALSE, 
+                                  reverse = FALSE, 
+                                  right = FALSE) {
+  if (!is.null(domain)) {
+    bins <- quantile(domain, probs, na.rm = TRUE, names = FALSE)
+    bins <- unique(bins)
+    return(leaflet:::withColorAttr(
+      "quantile", 
+      list(probs = probs, na.color = na.color),
+      leaflet::colorBin(palette, 
+                        domain = NULL, 
+                        bins = bins, 
+                        na.color = na.color, 
+                        alpha = alpha,
+                        reverse = reverse)
+    ))
+  }
+  colorFunc <- leaflet::colorFactor(palette, domain = 1:(length(probs) - 1), 
+                                    na.color = na.color, alpha = alpha, 
+                                    reverse = reverse)
+  leaflet:::withColorAttr(
+    "quantile",
+    list(probs = probs, na.color = na.color),
+    function(x) {
+      binsToUse <- quantile(x, probs,
+                            na.rm = TRUE,
+                            names = FALSE)
+      ints <- cut(
+        x,
+        binsToUse,
+        labels = FALSE,
+        include.lowest = TRUE,
+        right = right
+      )
+      if (any(is.na(x) != is.na(ints)))
+        warning("Some values were outside the color scale",
+                " and will be treated as NA")
+      colorFunc(ints)
+    })
+}
+
+#' Popup maker
+#'
+#' El objeto popup es un vector character con el código HTML usado al hacer
+#' click en un hexágono.
+#'
+#' @param datos Tabla con los datos. Espera la presencia de varias columnas
+#' @param grupo Grupo taxonómico para el que corresponden los datos
+#'
+#' @return Vector character con código HTML
+#' @export
+#'
+#' @examples
+mkpopup <- function(datos, grupo = "Todos") {
+  
+  # grupos aceptados:
+  grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae", "Mollusca",
+            "Insecta", "Arachnida", "Fungi", "Reptilia", "Actinopterygii",
+            "Chromista", "Protozoa")
+  
+  if (!(tolower(grupo) %in% tolower(grac))) 
+    stop("grupo debe ser alguno de los aceptados:\n", 
+         stringr::str_wrap(paste(grac, collapse = ', '), 
+                           80, indent = 2, exdent = 2))
+
+  grupo_html <- paste0("<strong>Grupo: </strong>", 
+                       stringr::str_to_title(grupo),
+                       "<br>")
+  
+  gr <- NULL
+  gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
+
+  cols_base <- c('grid_id', 'ranking', 'indice_prioridad', 'species_richness',
+                 'n_new_species_last_year', 'prop_new_species_last_year')
+  d <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
+  names(d) <- cols_base
+  
+  out <- paste0(
+    grupo_html,
+    "<strong>Grid ID: </strong>", 
+    d$grid_id, 
+    "<br><strong>Ranking: </strong>", 
+    replace_na(round(100 * d$ranking, 1), 0), "%",
+    "<br><strong>Índice de prioridad: </strong>", 
+    replace_na(round(d$indice_prioridad, 2), 1),
+    "<br><strong>Especies registradas: </strong>", 
+    d$species_richness,
+    "<br><strong>Especies nuevas, en el último año: </strong>",
+    d$n_new_species_last_year,
+    " (", round(100 * d$prop_new_species_last_year, 1), 
+    " %)")
+  return(out)
+}
+
 #' Cantidad de especies nuevas
 #'
 #' @param nuevas Muestra nueva de especies
@@ -60,44 +163,6 @@ nuevas_spp <- function(nuevas, viejas) {
   uv <- unique(viejas)
   out <- length(un) - sum(un %in% uv)
   return(out)
-}
-
-colorQuantile_hacked <- function (palette, domain, n = 4,
-                              probs = seq(0, 1, length.out = n + 1), 
-                              na.color = "#808080", 
-                              alpha = FALSE, 
-                              reverse = FALSE, 
-                              right = FALSE) {
-  if (!is.null(domain)) {
-    bins <- quantile(domain, probs, na.rm = TRUE, names = FALSE)
-    bins <- unique(bins)
-    return(leaflet:::withColorAttr("quantile", 
-                                   list(probs = probs, na.color = na.color),
-                                   leaflet::colorBin(palette, 
-                                                     domain = NULL, 
-                                                     bins = bins, 
-                                                     na.color = na.color, 
-                                                     alpha = alpha,
-                                                     reverse = reverse)))
-  }
-  colorFunc <- leaflet::colorFactor(palette, domain = 1:(length(probs) - 1), 
-                                    na.color = na.color, alpha = alpha, 
-                                    reverse = reverse)
-  leaflet:::withColorAttr("quantile", 
-                          list(probs = probs, na.color = na.color), 
-                          function(x) {
-                            binsToUse <- quantile(x, probs, 
-                                                  na.rm = TRUE, 
-                                                  names = FALSE)
-                            ints <- cut(x, binsToUse, 
-                                        labels = FALSE, 
-                                        include.lowest = TRUE, 
-                                        right = right)
-                            if (any(is.na(x) != is.na(ints))) 
-                              warning("Some values were outside the color scale",
-                                      " and will be treated as NA")
-                            colorFunc(ints)
-                          })
 }
 ```
 
@@ -136,7 +201,6 @@ iNatUY_GIS <- iNatUY %>%
   sf::st_as_sf(coords = c("longitude", "latitude")) %>% 
   st_set_crs(4326) %>% 
   st_transform(32721)
-
 ```
 
 Columna `last_year`: creada para establecer algunos indicadores relacionados a la acumulación de observaciones y registros del último año.
@@ -221,7 +285,6 @@ grid_iNatUY_ranking_groups <-
                               list(n_new_species_last_year = 0),
                               list(prop_new_species_last_year = 0))
               )
-  
 ```
 
 
@@ -230,9 +293,9 @@ grid_iNatUY_ranking_groups <-
 Transformo el CRS de la capa
 
 ```{r}
-datos <- 
-  left_join(x = sf::st_sf(grid_iNatUY_ranking, sf_column_name = 'x'),
-          y = as_tibble(grid_iNatUY_ranking_groups), by='grid_id') %>% 
+datos <- grid_Uruguay %>% 
+  left_join(sf::st_drop_geometry(grid_iNatUY_ranking), by = 'grid_id') %>% 
+  left_join(grid_iNatUY_ranking_groups, by = 'grid_id') %>% 
   st_transform(crs = 4326)
 ```
 
@@ -241,44 +304,12 @@ Los datos se pueden visualizar aquí de modo exploratorio, en el primer caso par
 En la app Shiny se podrá filtrar por grupo taxonómico.
 
 ```{r}
-# El objeto popup es un vector character con el código HTML
-popup <- paste0(
-  "<strong>Grid ID: </strong>", 
-  datos$grid_id, 
-  "<br><strong>Ranking: </strong>", 
-  replace_na(round(100 * datos$ranking, 1), 0), "%",
-  "<br><strong>Índice de prioridad: </strong>", 
-  replace_na(round(datos$indice_prioridad, 2), 1),
-  "<br><strong>Especies registradas: </strong>", 
-  datos$species_richness,
-  "<br><strong>Especies nuevas, en el último año: </strong>",
-  datos$n_new_species_last_year,
-  " (", round(100 * datos$prop_new_species_last_year, 1), " %)"
-                )
-
-popup_aves <- paste0(
-  "<strong>Group: </strong>", 
-  'Aves', 
-  "<strong>Grid ID: </strong>", 
-  datos$grid_id, 
-  "<br><strong>Ranking: </strong>", 
-  replace_na(round(100 * datos$ranking_Aves, 1), 0), "%",
-  "<br><strong>Índice de prioridad: </strong>", 
-  replace_na(round(datos$indice_prioridad_Aves, 2), 1),
-  "<br><strong>Especies registradas: </strong>", 
-  datos$species_richness_Aves,
-  "<br><strong>Especies nuevas, en el último año: </strong>",
-  datos$n_new_species_last_year_Aves,
-  " (", round(100 * datos$prop_new_species_last_year_Aves, 1), " %)"
-                )
-
 # Paleta de colores (colorblind safe):
 pal <- colorQuantile_hacked("RdYlBu", 
                      datos$ranking, 
                      n = 5, 
                      na.color = "#4d0012",
                      reverse = FALSE)
-
 
 # Widget de leaflet:
 leaflet(datos) %>%
@@ -295,7 +326,7 @@ leaflet(datos) %>%
     color = 'white',
     fillColor = ~pal(ranking),
     fillOpacity = .5,
-    popup = popup,
+    popup = mkpopup(datos, "Todos"),
     highlightOptions = highlightOptions(color = "white", 
                                         weight = 5, 
                                         fillOpacity = .8,
@@ -314,10 +345,9 @@ leaflet(datos) %>%
               position = 'bottomright', title = 'Ranking', #bins = 5,
             group = 'Grilla') %>% 
     hideGroup("Transporte")
-
 ```
 
-``` {r}
+```{r}
 # Widget de leaflet por grupo (Ejemplo: Aves):
 leaflet(datos) %>%
   clearBounds() %>% 
@@ -333,7 +363,7 @@ leaflet(datos) %>%
     color = 'white',
     fillColor = ~pal(ranking_Aves),
     fillOpacity = .5,
-    popup = popup_aves,
+    popup = mkpopup(datos, "Aves"),
     highlightOptions = highlightOptions(color = "white", 
                                         weight = 5, 
                                         fillOpacity = .8,
@@ -352,3 +382,4 @@ leaflet(datos) %>%
               position = 'bottomright', title = 'Ranking', #bins = 5,
             group = 'Grilla') %>% 
     hideGroup("Transporte")
+```
