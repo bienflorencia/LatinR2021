@@ -1,0 +1,437 @@
+---
+title: "iNatUY donde ir a registar"
+author: "Florencia Grattarola y Juan Manuel Barreneche"
+date: "28 de Julio, 2021"
+output: 
+  html_document: 
+    keep_md: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(sf)
+library(leaflet)
+Uruguay <- geouy::load_geouy(c = "Dptos")
+iNatUY <- read_csv('../data/observations-175157.csv', guess_max = 25000)
+```
+
+_Inputs y paquetes_
+
+```r
+library(tidyverse)
+library(sf)
+library(leaflet)
+Uruguay <- geouy::load_geouy(c = "Dptos")
+iNatUY  <- read_csv('../data/observations-175157.csv', guess_max = 25000)
+```
+
+# Soy naturalista y quiero pasear en mi país, ¿dónde hay más oportunidades de llenar vacíos de información?
+
+Usando como base los datos ingresados en la plataforma [iNaturalist](inaturalist.org) para Uruguay, nos propusimos generar un mapa interactivo que rankee las áreas con déficit de datos de biodiversidad y nos permita resaltar zonas en las que registros adicionales de biodiversidad podrían ser particularmente valiosos para llenar los vacíos de conocimiento. Para esto, calculamos una serie de métricas por unidad de área, por cada grupo taxonómico y para todas las especies juntas, y luego integramos estas métricas en un índice de prioridad. Finalmente, generamos un ránking de prioridad por grilla y mostramos los valores en un mapa interactivo.
+
+## Métodos
+
+ - Descargamos de iNaturalist todas las observaciones registradas para Uruguay (al 6 de julio de 2021). Filtramos aquellas de organismos silvestres identificados a nivel de especie y con coordenadas visibles.  
+ - Descargamos el mapa de los departamentos de Uruguay y generamos grillas hexagonales de 25x25km para calcular las métricas de interés.  
+ - Calculamos las métricas por grupo taxonómico y para todas las espcies, para el conjunto de grillas generadas, y las integramos en un índice de prioridad.  
+ - Generamos un visualizador experimental que permite ver en escala de percentiles, dónde hay más oportunidades de llenar vacíos de información.  
+
+
+La grilla de datos fue usada como base para crear una app en Shiny, usando los paquetes shiny, sf, tidyverse, y leaflet. La app permite visualizar el mapa de Uruguay con grillas hexagonales de 25x25km, coloreadas según el ranking de prioridad generado [(Figura 1)](#figura).  
+
+## Funciones
+
+```{r}
+#' Sustituta de leaflet::colorQuantile
+#'
+#' Evita un error frecuente (ver: https://github.com/rstudio/leaflet/issues/94)
+#'
+#' Ver \code{\link[leaflet]{colorQuantile}} para más información de cómo usar
+#'   la función.
+colorQuantile_hacked <- function (palette, domain, n = 4,
+                                  probs = seq(0, 1, length.out = n + 1), 
+                                  na.color = "#808080", 
+                                  alpha = FALSE, 
+                                  reverse = FALSE, 
+                                  right = FALSE) {
+  if (!is.null(domain)) {
+    bins <- quantile(domain, probs, na.rm = TRUE, names = FALSE)
+    bins <- unique(bins)
+    return(leaflet:::withColorAttr(
+      "quantile", 
+      list(probs = probs, na.color = na.color),
+      leaflet::colorBin(palette, 
+                        domain = NULL, 
+                        bins = bins, 
+                        na.color = na.color, 
+                        alpha = alpha,
+                        reverse = reverse)
+    ))
+  }
+  colorFunc <- leaflet::colorFactor(palette, domain = 1:(length(probs) - 1), 
+                                    na.color = na.color, alpha = alpha, 
+                                    reverse = reverse)
+  leaflet:::withColorAttr(
+    "quantile",
+    list(probs = probs, na.color = na.color),
+    function(x) {
+      binsToUse <- quantile(x, probs,
+                            na.rm = TRUE,
+                            names = FALSE)
+      ints <- cut(
+        x,
+        binsToUse,
+        labels = FALSE,
+        include.lowest = TRUE,
+        right = right
+      )
+      if (any(is.na(x) != is.na(ints)))
+        warning("Some values were outside the color scale",
+                " and will be treated as NA")
+      colorFunc(ints)
+    })
+}
+
+#' Popup maker
+#'
+#' El objeto popup es un vector character con el código HTML usado al hacer
+#' click en un hexágono.
+#'
+#' @param datos Tabla con los datos. Espera la presencia de varias columnas
+#' @param grupo Grupo taxonómico para el que corresponden los datos
+#'
+#' @return Vector character con código HTML
+#' @export
+#'
+#' @examples
+mkpopup <- function(datos, grupo = "Todos") {
+  
+  # grupos aceptados:
+  grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae", "Mollusca",
+            "Insecta", "Arachnida", "Fungi", "Reptilia", "Actinopterygii",
+            "Chromista", "Protozoa")
+  
+  if (!(tolower(grupo) %in% tolower(grac))) 
+    stop("grupo debe ser alguno de los aceptados:\n", 
+         stringr::str_wrap(paste(grac, collapse = ', '), 
+                           80, indent = 2, exdent = 2))
+
+  grupo_html <- paste0("<strong>Grupo: </strong>", 
+                       stringr::str_to_title(grupo),
+                       "<br>")
+  
+  gr <- NULL
+  gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
+
+  cols_base <- c('grid_id', 'ranking', 'indice_prioridad', 'species_richness',
+                 'n_new_species_last_year', 'prop_new_species_last_year')
+  d <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
+  names(d) <- cols_base
+  
+  out <- paste0(
+    grupo_html,
+    "<strong>Grid ID: </strong>", 
+    d$grid_id, 
+    "<br><strong>Ranking: </strong>", 
+    replace_na(round(100 * d$ranking, 1), 0), "%",
+    "<br><strong>Índice de prioridad: </strong>", 
+    replace_na(round(d$indice_prioridad, 2), 1),
+    "<br><strong>Especies registradas: </strong>", 
+    d$species_richness,
+    "<br><strong>Especies nuevas, en el último año: </strong>",
+    d$n_new_species_last_year,
+    " (", round(100 * d$prop_new_species_last_year, 1), 
+    " %)")
+  return(out)
+}
+
+#' Cantidad de especies nuevas
+#'
+#' @param nuevas Muestra nueva de especies
+#' @param viejas Muestra vieja de especies
+#'
+#' @return integer. Número de especies nuevas
+#' @export
+#'
+#' @examples
+#' nuevas_spp(c('a', 'c', 'f'), c('a', 'a', 'c', 'b', 'c'))
+nuevas_spp <- function(nuevas, viejas) {
+  un <- unique(nuevas)
+  uv <- unique(viejas)
+  out <- length(un) - sum(un %in% uv)
+  return(out)
+}
+```
+
+### Grillas
+
+```{r, cache=F}
+grid_Uruguay <- 
+  sf::st_make_grid(x = Uruguay, cellsize = 25000, square = F)  %>% 
+  st_intersection(., st_union(Uruguay)) %>% 
+  st_as_sf() %>% 
+  mutate(grid_id = 1:nrow(.))
+```
+
+### Limpieza de datos
+
+```{r}
+last_date <- max(iNatUY$observed_on, na.rm = TRUE)
+
+iNatUY_GIS <- iNatUY %>% 
+  mutate(year = lubridate::year(observed_on),
+         last_year = observed_on + 365 >= last_date) %>% 
+  filter(captive_cultivated == FALSE,
+         coordinates_obscured == FALSE) %>% 
+  filter(!is.na(taxon_species_name) & !is.na(iconic_taxon_name)) %>% 
+  select(observed_on, year, last_year,
+         taxon_id,
+         scientific_name, 
+         class = taxon_class_name, 
+         order = taxon_order_name, 
+         family = taxon_family_name, 
+         genus = taxon_genus_name, 
+         species= taxon_species_name,
+         latitude, 
+         longitude, 
+         iconic_taxon_name) %>% 
+  sf::st_as_sf(coords = c("longitude", "latitude")) %>% 
+  st_set_crs(4326) %>% 
+  st_transform(32721)
+```
+
+Columna `last_year`: creada para establecer algunos indicadores relacionados a la acumulación de observaciones y registros del último año.
+
+### Cálculos de los índices e indicadores:
+
+```{r}
+# JOIN espacial:
+grid_join <- st_join(x = grid_Uruguay,
+                     y = iNatUY_GIS %>%
+                       select(taxon_id, species,
+                              observed_on, year, last_year,
+                              iconic_taxon_name),
+                     left = TRUE, join = st_contains)
+
+# Para todas las especies
+grid_iNatUY_ranking <- 
+  grid_join %>%
+  filter(!is.na(iconic_taxon_name)) %>% 
+  group_by(grid_id) %>% 
+  # Indicadores:
+  summarise(
+    spatial_intensity = ifelse(n_distinct(taxon_id, na.rm = TRUE), n(), 0),
+    temporal_intensity = n_distinct(year, na.rm = TRUE),
+    species_richness = n_distinct(taxon_id, na.rm = TRUE),
+    n_new_species_last_year = nuevas_spp(taxon_id[last_year], taxon_id[!last_year]),  
+    prop_new_species_last_year = n_new_species_last_year / species_richness, 
+    .groups = 'drop') %>% 
+  # Reescalamientos:
+  mutate(spatial_intensity = ifelse(spatial_intensity, 
+                                    scales::rescale(spatial_intensity, to = 1:0), 
+                                    NA),
+         temporal_intensity = ifelse(temporal_intensity,
+                                     scales::rescale(temporal_intensity, to = 1:0),
+                                     NA)) %>% 
+  mutate(indice_prioridad = 
+           scales::rescale(temporal_intensity + spatial_intensity, to = 0:1),
+         ranking = rank(indice_prioridad, 
+                        ties.method = 'max', 
+                        na.last = TRUE) %>% 
+           scales::rescale(to = 1:0) %>% 
+           ifelse(is.na(indice_prioridad), NA, .))
+
+# Por grupo
+grid_iNatUY_ranking_groups <-
+  grid_join %>%
+  filter(!is.na(iconic_taxon_name)) %>% 
+  group_by(grid_id, iconic_taxon_name) %>% 
+  # Indicadores:
+  summarise(
+    spatial_intensity = ifelse(n_distinct(taxon_id, na.rm = TRUE), n(), 0),
+    temporal_intensity = n_distinct(year, na.rm = TRUE),
+    species_richness = n_distinct(taxon_id, na.rm = TRUE),
+    n_new_species_last_year = nuevas_spp(taxon_id[last_year], taxon_id[!last_year]),  
+    prop_new_species_last_year = n_new_species_last_year / species_richness, 
+    .groups = 'drop') %>% 
+  # Reescalamientos:
+  group_by(iconic_taxon_name) %>% 
+  mutate(spatial_intensity = ifelse(spatial_intensity, 
+                                    scales::rescale(spatial_intensity, to = 1:0), 
+                                    NA),
+         temporal_intensity = ifelse(temporal_intensity,
+                                     scales::rescale(temporal_intensity, to = 1:0),
+                                     NA)) %>% 
+  mutate(indice_prioridad = 
+           scales::rescale(temporal_intensity + spatial_intensity, to = 0:1),
+         ranking = rank(indice_prioridad, 
+                        ties.method = 'max', 
+                        na.last = TRUE) %>% 
+           scales::rescale(to = 1:0) %>% 
+           ifelse(is.na(indice_prioridad), NA, .)) %>% 
+  sf::st_drop_geometry()  %>% 
+  pivot_wider(id_cols = grid_id, 
+              names_from = iconic_taxon_name, 
+              values_from = c(indice_prioridad, 
+                              ranking,
+                              species_richness,
+                              n_new_species_last_year,
+                              prop_new_species_last_year),
+              #names_glue = "{iconic_taxon_name}_{.value}",
+              values_fill = c(list(species_richness = 0),
+                              list(n_new_species_last_year = 0),
+                              list(prop_new_species_last_year = 0))
+              )
+```
+
+
+## Visualización de resultados (próximamente en Shiny)
+
+Transformo el CRS de la capa
+
+```{r}
+datos <- grid_Uruguay %>% 
+  left_join(sf::st_drop_geometry(grid_iNatUY_ranking), by = 'grid_id') %>% 
+  left_join(grid_iNatUY_ranking_groups, by = 'grid_id') %>% 
+  st_transform(crs = 4326)
+```
+
+
+Los datos se pueden visualizar aquí de modo exploratorio, en el primer caso para todas las especies y en el segundo por grupo. 
+En la app Shiny se podrá filtrar por grupo taxonómico.
+
+```{r}
+# Paleta de colores (colorblind safe):
+pal <- colorQuantile_hacked("RdYlBu", 
+                     datos$ranking, 
+                     n = 5, 
+                     na.color = "#4d0012",
+                     reverse = FALSE)
+
+# Widget de leaflet:
+leaflet(datos) %>%
+  clearBounds() %>% 
+  addTiles(group = "Open Street Map") %>% 
+  addProviderTiles(providers$OpenTopoMap,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Open Topo Map') %>%
+  addProviderTiles(providers$Esri.WorldImagery,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Imagen') %>%
+  addPolygons(
+    weight = .5, 
+    color = 'white',
+    fillColor = ~pal(ranking),
+    fillOpacity = .5,
+    popup = mkpopup(datos, "Todos"),
+    highlightOptions = highlightOptions(color = "white", 
+                                        weight = 5, 
+                                        fillOpacity = .8,
+                                        bringToFront = TRUE),
+    group = "Grilla"
+  ) %>% 
+  # Control de capas:
+  addLayersControl(
+    baseGroups = c("Open Street Map", "Open Topo Map", "Imagen"),
+    overlayGroups = c("Grilla"), # "Transporte"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>% 
+  # Leyenda de índice de prioridad
+  addLegend(pal = pal, values = ~ranking, opacity = .5,
+            na.label = 'Sin registros',
+              position = 'bottomright', title = 'Ranking', #bins = 5,
+            group = 'Grilla')
+```
+
+```{r}
+# Widget de leaflet por grupo (Ejemplo: Aves):
+leaflet(datos) %>%
+  clearBounds() %>% 
+  addTiles(group = "Open Street Map") %>% 
+  addProviderTiles(providers$OpenTopoMap,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Open Topo Map') %>%
+  addProviderTiles(providers$Esri.WorldImagery,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Imagen') %>%
+  addPolygons(
+    weight = .5, 
+    color = 'white',
+    fillColor = ~pal(ranking_Aves),
+    fillOpacity = .5,
+    popup = mkpopup(datos, "Aves"),
+    highlightOptions = highlightOptions(color = "white", 
+                                        weight = 5, 
+                                        fillOpacity = .8,
+                                        bringToFront = TRUE),
+    group = "Grilla"
+  ) %>% 
+  # Control de capas:
+  addLayersControl(
+    baseGroups = c("Open Street Map", "Open Topo Map", "Imagen"),
+    overlayGroups = c("Grilla"), # "Transporte"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>% 
+  # Leyenda de índice de prioridad
+  addLegend(pal = pal, values = ~ranking_Aves, opacity = .5,
+            na.label = 'Sin registros',
+              position = 'bottomright', title = 'Ranking', #bins = 5,
+            group = 'Grilla')
+```
+
+```{r}
+# Widget de leaflet por grupo (Ejemplo: Aves):
+base <- leaflet(datos) %>%
+  clearBounds() %>% 
+  addTiles(group = "Open Street Map") %>% 
+  addProviderTiles(providers$OpenTopoMap,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Open Topo Map') %>%
+  addProviderTiles(providers$Esri.WorldImagery,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Imagen')
+
+# grupos <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae", 
+#             "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia", 
+#             "Actinopterygii", "Chromista", "Protozoa")
+
+grupos <- names(datos)[c(-1:-9, -ncol(datos))] %>% gsub('.*_', '', .) %>% unique %>% sort
+
+gr <- c('', paste0('_', grupos[-1]))
+
+# foo <- function(x) pal()
+
+for (i in 1:length(grupos)) {
+  base <- base %>% 
+    addPolygons(
+    weight = .5, 
+    color = 'white',
+    fillColor = pal(datos[paste0('ranking', gr[i])][[1]]),
+    fillOpacity = .5,
+    popup = mkpopup(datos, grupos[i]),
+    highlightOptions = highlightOptions(color = "white", 
+                                        weight = 5, 
+                                        fillOpacity = .8,
+                                        bringToFront = TRUE),
+    group = grupos[i]
+  ) %>% 
+  # Leyenda de índice de prioridad
+  addLegend(pal = pal, values = ~ranking_Aves, opacity = .5,
+            na.label = 'Sin registros',
+            position = 'bottomright', 
+            title = 'Ranking',
+            group = grupos[i])
+}
+
+base %>% 
+  # Control de capas:
+  addLayersControl(
+    baseGroups = c("Open Street Map", "Open Topo Map", "Imagen", grupos),
+    # overlayGroups = grupos,
+    options = layersControlOptions(collapsed = FALSE)
+  )
+  
+```
