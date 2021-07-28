@@ -33,6 +33,142 @@
 ## (( CAPAZ QUE EN MAC LOS CTRL HAY QUE CAMBIARLOS TODOS POR EL BOTÓN ESE QUE
 ## USAN USTEDES ))
 
+#' Sustituta de leaflet::colorQuantile
+#'
+#' Conveniently maps data values (numeric or factor/character) to colors
+#' according to a given palette, which can be provided in a variety of formats.
+#'
+#' colorNumeric is a simple linear mapping from continuous numeric data to an
+#' interpolated palette.
+#'
+#' colorBin also maps continuous numeric data, but performs binning based on
+#' value (see the cut function). colorBin defaults for the cut function are
+#' include.lowest = TRUE and right = FALSE.
+#'
+#' colorQuantile similarly bins numeric data, but via the quantile function.
+#'
+#' colorFactor maps factors to colors. If the palette is discrete and has a
+#' different number of colors than the number of factors, interpolation is used.
+#'
+#' The palette argument can be any of the following:
+#'
+#' A character vector of RGB or named colors. Examples: palette(), c("#000000",
+#' "#0000FF", "#FFFFFF"), topo.colors(10)
+#'
+#' The name of an RColorBrewer palette, e.g. "BuPu" or "Greens".
+#'
+#' The full name of a viridis palette: "viridis", "magma", "inferno", or
+#' "plasma".
+#'
+#' A function that receives a single value between 0 and 1 and returns a color.
+#' Examples: colorRamp(c("#000000", "#FFFFFF"), interpolate = "spline").
+#'
+#' @param palette The colors or color function that values will be mapped to
+#'
+#' @param domain The possible values that can be mapped.
+#'
+#'   For \code{colorNumeric} and \code{colorBin}, this can be a simple numeric
+#'   range (e.g. \code{c(0, 100)}); \code{colorQuantile} needs representative
+#'   numeric data; and \code{colorFactor} needs categorical data.
+#'
+#'   If \code{NULL}, then whenever the resulting color function is called, the
+#'   \code{x} value will represent the domain. This implies that if the function
+#'   is invoked multiple times, the encoding between values and colors may not
+#'   be consistent; if consistency is needed, you must provide a non-NULL
+#'   domain.
+#'
+#' @param n Number of equal-size quantiles desired. For more precise control,
+#'   use the probs argument instead.
+#'
+#' @param probs See quantile. If provided, the n argument is ignored.
+#'
+#' @param na.color The color to return for NA values. Note that na.color = NA is
+#'   valid.
+#'
+#' @param alpha Whether alpha channels should be respected or ignored. If TRUE
+#'   then colors without explicit alpha information will be treated as fully
+#'   opaque.
+#'
+#' @param reverse Whether the colors (or color function) in palette should be
+#'   used in reverse order. For example, if the default order of a palette goes
+#'   from blue to green, then reverse = TRUE will result in the colors going
+#'   from green to blue.
+#'
+#' @param right parameter supplied to cut. See Details
+#'
+#' @return A function that takes a single parameter x; when called with a vector
+#'   of numbers (except for colorFactor, which expects factors/characters),
+#'   #RRGGBB color strings are returned (unless alpha = TRUE in which case
+#'   #RRGGBBAA may also be possible).
+#' @export
+#'
+#' @examples
+#' vals <- c( 2, 0, 2, 127, 2, 3, 1, 8, 7, 3, 4, 16, 3, 5, 4, 6, 1, 3, 5, 1, 1,
+#' 4, 4, 1, 11, 1, 0, 1, 3, 2, 3, 7, 14, 2, 9, 16, 1, 6, 5, 4, 3, 5, 10, 8, 7,
+#' 4, 0, 11, 5, 4, 7, 3, 2, 8, 1, 3, 4, 3, 3, 21, 11, 6, 2, 10, 5, 5, 2, 2, 5,
+#' 2, 5, 10, 27, 0, 5, 9, 6, 6, 5, 4, 20, 7, 4, 6, 8, 3, 5, 20, 4, 2, 8, 3, 7,
+#' 10, 1, 8, 7, 2, 1, 9, 2, 5, 137, 4, 3, 0, 3, 5, 6, 7, 2, 17, 4, 4, 4, 4, 3,
+#' 2, 0, 2, 5, 1, 0, 3, 1, 2, 0, 10, 12, 3, 7, 5, 0, 11, 5, 4, 2, 2, 1, 0, 4, 6,
+#' 2, 3, 2, 7, 6, 2, 1, 5, 1, 9, 2, 0, 4, 0, 7, 3, 4, 4, 0, 0, 1, 0, 5, 8, 1, 2,
+#' 4, 10, 12, 15, 2, 5, 3, 2, 3, 1, 5, 0, 7, 67, 1, 2, 5, 1, 2, 0, 3, 6, 1, 7,
+#' 2, 1, 4, 2, 2, 8, 0, 3, 3, 7, 3, 16, 8, 6, 18, 2, 20, 5, 3, 28, 2, 6, 5, 5,
+#' 6, 1, 10, 2, 18, 7, 5, 7, 8, 6, 6, 7, 7, 10, 4, 17, 6, 12, 5, 5, 4, 4, 3, 6,
+#' 8, 2, 2, 0, 7, 6, 4, 3, 4, 4, 6, 3, 39, 4, 2, 1, 3, 2, 3, 1, 0, 6, 6, 0, 4,
+#' 1, 14, 13, 0, 25, 2, 4, 5, 5, 11, 2, 2, 0, 17, 6, 2, 3, 5, 7, 1, 4, 3, 2, 19,
+#' 2, 2, 6, 1, 1, 2, 1, 2, 1, 1, 4, 3, 0, 4, 3 )
+#'
+#' pal0 <- leaflet::colorQuantile("RdYlGn", vals, n = 9, 
+#'                                na.color = "#4d0012", reverse = FALSE)
+#' 
+#' pal0(x)
+#'
+#' pal1 <- colorQuantile_jm("RdYlGn", vals, n = 9, 
+#'                          na.color = "#4d0012", reverse = FALSE)
+#' 
+#' pal1(x)
+colorQuantile_jm <- function (palette, domain, n = 4,
+                              probs = seq(0, 1, length.out = n + 1), 
+                              na.color = "#808080", 
+                              alpha = FALSE, 
+                              reverse = FALSE, 
+                              right = FALSE) {
+  if (!is.null(domain)) {
+    bins <- quantile(domain, probs, na.rm = TRUE, names = FALSE)
+    bins <- unique(bins)
+    return(leaflet:::withColorAttr(
+      "quantile", 
+      list(probs = probs, na.color = na.color),
+      leaflet::colorBin(palette, 
+                        domain = NULL, 
+                        bins = bins, 
+                        na.color = na.color, 
+                        alpha = alpha,
+                        reverse = reverse)
+    ))
+  }
+  colorFunc <- leaflet::colorFactor(palette, domain = 1:(length(probs) - 1), 
+                                    na.color = na.color, alpha = alpha, 
+                                    reverse = reverse)
+  leaflet:::withColorAttr(
+    "quantile",
+    list(probs = probs, na.color = na.color),
+    function(x) {
+      binsToUse <- quantile(x, probs,
+                            na.rm = TRUE,
+                            names = FALSE)
+      ints <- cut(
+        x,
+        binsToUse,
+        labels = FALSE,
+        include.lowest = TRUE,
+        right = right
+      )
+      if (any(is.na(x) != is.na(ints)))
+        warning("Some values were outside the color scale",
+                " and will be treated as NA")
+      colorFunc(ints)
+    })
+}
 
 #' Curva de acumulación JMB
 #'
