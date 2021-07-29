@@ -1,12 +1,12 @@
 ---
 title: "Soy naturalista y quiero pasear en mi país, ¿dónde hay más oportunidades de llenar vacíos de información?"
-author: "LatinR 2021 - Montevideo, Uruguay"
-date: "28 de Julio, 2021"
+author: "LatinR"
+date: "2021"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = F)
 library(knitr)
 ```
 
@@ -19,10 +19,17 @@ library(knitr)
 
 La biodiversidad a nivel global está disminuyendo a un ritmo sin precedentes. En este contexto, uno de los principales desafíos que enfrentan los países alrededor del mundo es establecer mecanismos para medir cuantitativamente la biodiversidad y monitorear sus cambios. Sin embargo, en diversas regiones de Latinoamérica y el Caribe los datos de biodiversidad disponibles de manera abierta son limitados. Para poder tomar mejores decisiones basadas en evidencia es sumamente crítico revertir la falta de datos primarios sobre la distribución geográfica de las especies en el territorio, particularmente en países como Uruguay, donde la existencia de bases de datos abiertas es prácticamente nula. Para esto, la ciencia ciudadana se presenta como una herramienta comunitaria transformadora. Una de las plataformas globales más usadas en Latinoamérica y el mundo, es iNaturalist (inaturalist.org). Esta plataforma web y aplicación para celulares, tiene como principal funcionalidad el registro de organismos en el tiempo y el espacio y reúne, en torno a estos datos, a la comunidad de naturalistas más grande del mundo. Una característica de los datos que provienen de la ciencia ciudadana es que suelen centrarse en áreas de fácil acceso y próximas a centros poblados, carreteras y áreas de interés (como por ejemplo, áreas protegidas). Para poder generar datos más diversos y mejorar el conocimiento de la biodiversidad, quienes observan (y quienes usan los datos) se verían muy beneficiados de tener a disposición una herramienta que les permita decidir a dónde ir a registrar organismos y qué grupos observar en función de maximizar su aporte.  
 
-Usando como base los datos ingresados en la plataforma iNaturalist para Uruguay (descargados el 6 de julio de 2021), nos propusimos generar un mapa interactivo que rankee las áreas con déficit de datos de biodiversidad y nos permita resaltar zonas en las que registros adicionales de biodiversidad podrían ser particularmente valiosos para llenar los vacíos de conocimiento. Para esto, calculamos una serie de métricas por unidad de área, usando los paquetes geouy, sf y tidyverse, y luego las integramos en un índice de prioridad. La grilla de datos fue usada como base para crear una app en Shiny, usando los paquetes shiny y leaflet. La app permite visualizar el mapa de Uruguay con grillas hexagonales de 25x25km, coloreadas según el ranking de prioridad generado (Figura 1). Además, quienes consulten el mapa podrán ver  también la cantidad de especies por grilla, la cantidad de observaciones y de especies registradas en el último año, y la cantidad de especies nuevas registradas en el último año. 
+Usando como base los datos ingresados en la plataforma iNaturalist para Uruguay (descargados el 6 de julio de 2021), nos propusimos generar un mapa interactivo que rankee las áreas con déficit de datos de biodiversidad y nos permita resaltar zonas en las que registros adicionales de biodiversidad podrían ser particularmente valiosos para llenar los vacíos de conocimiento. Para esto, calculamos una serie de métricas por unidad de área, usando los paquetes `geouy`, `sf` y `tidyverse`, y luego las integramos en un índice de prioridad y un ranking (rango percentil). La grilla de datos fue usada como base para crear una app en Shiny, usando los paquetes `shiny` y `leaflet`. La app permite visualizar el mapa de Uruguay con grillas hexagonales de 25x25km, coloreadas según el ranking de prioridad generado (Figura 1 y 2). Además, quienes consulten el mapa podrán ver también la cantidad de especies por grilla, la cantidad de especies nuevas registradas en el último año y la proporción de éstas sobre el total.  
 
 **Ver**: [https://github.com/bienflorencia/LatinR2021](https://github.com/bienflorencia/LatinR2021)  
 
-Haciendo uso de esta herramienta, usuarios y usuarias de la plataforma iNaturalist podrán decidir el destino de sus paseos en función de dónde registrar observaciones de la biodiversidad es más urgente y así contribuir a mejorar el conocimiento sobre la distribución de especies en el país. Esta herramienta podría replicarse en otras partes del mundo, además, nuevas métricas podrían ser propuestas y formas de visualizar los datos acorde a las regiones (e.g. resaltando rutas, áreas administrativas o zonas de interés).  
+Haciendo uso de esta herramienta, usuarios y usuarias de la plataforma iNaturalist podrán decidir el destino de sus paseos en función de dónde registrar observaciones de la biodiversidad es más urgente y así contribuir a mejorar el conocimiento sobre la distribución de especies en el país. Esta herramienta podría replicarse en otras partes del mundo, además, nuevas métricas podrían ser propuestas y formas de visualizar los datos acordes a las regiones (e.g. resaltando rutas, áreas administrativas o zonas de interés).    
 
-![Visualización en Leaflet](../figures/leafleat_all_groups.png)
+```{r image_all, fig.cap="Todas las especies", out.width = "75%", fig.align = "center"}
+knitr::include_graphics('../figures/leaflet_all_groups.png')
+```
+
+
+```{r image_aves, fig.cap="Aves", out.width = "75%", fig.align = "center"}
+knitr::include_graphics('../figures/leaflet_aves.png')
+```

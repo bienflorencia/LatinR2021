@@ -168,7 +168,7 @@ nuevas_spp <- function(nuevas, viejas) {
 
 ### Grillas
 
-```{r, cache=F}
+```{r, cache=T}
 grid_Uruguay <- 
   sf::st_make_grid(x = Uruguay, cellsize = 25000, square = F)  %>% 
   st_intersection(., st_union(Uruguay)) %>% 
