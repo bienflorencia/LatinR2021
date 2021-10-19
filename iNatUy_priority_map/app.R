@@ -7,6 +7,8 @@ source('R/funciones.R', local = TRUE, encoding = 'UTF-8')
 mis_etiquetas <- readLines('data/mis_etiquetas.txt')
 Uruguay <- readRDS('data/Uruguay_map.rds')
 datos <- readRDS('data/datos.rds')
+# Hay que ver qué hacer con algunos grupos. Por lo menos con Chromista y
+# Protozoa da errores
 grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
           "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia", 
           "Actinopterygii", "Chromista", "Protozoa")
