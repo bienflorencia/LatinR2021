@@ -1,0 +1,6 @@
+Muy baja
+Baja
+Media
+Alta
+Muy alta
+Sin registros
