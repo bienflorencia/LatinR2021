@@ -402,11 +402,24 @@ mkpopup <- function(grid_id, etiqueta, grupo = "Todos") {
 }
 
 
+#' Filtrar datos por grupo
+#' 
+#' Filtra la tabla de datos para quedarse sólo con las columnas correspondientes a 
+#' un grupo en particular.
+#'
+#' @param datos 
+#' @param grupo 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 data_filter <- function(datos, grupo = "Todos") {
   # grupos aceptados:
-  grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae", 
-            "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia",
-            "Actinopterygii", "Chromista", "Protozoa")
+  if (!exists(grac))
+    grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae", 
+              "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia",
+              "Actinopterygii", "Chromista", "Protozoa")
   
   if (!(tolower(grupo) %in% tolower(grac))) 
     stop("grupo debe ser alguno de los aceptados:\n", 
@@ -416,11 +429,16 @@ data_filter <- function(datos, grupo = "Todos") {
   gr <- NULL
   gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
 
-  cols_base <- c('grid_id', 'ranking', 'indice_prioridad', 
-                 'species_richness', 'n_new_species_last_year', 
-                 'prop_new_species_last_year')
+  if (!exists('cols_base'))
+    cols_base <- c('grid_id', 'area', 'ranking', 'indice_prioridad', 
+                   'spatial_intensity',
+                   'temporal_intensity', 'species_richness', 
+                   'n_new_species_last_year', 'prop_new_species_last_year')
+  
+  cols_base <- cols_base[cols_base != 'area']
   # out <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
   
+  # print(cols_base) # debug
   columnas <- c('grid_id', paste0(cols_base[-1], gr), 'x')
   
   # print(columnas) # debug

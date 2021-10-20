@@ -1,0 +1,13 @@
+name: iNatUy_priority_map
+title: iNatUy_priority_map
+username:
+account: jumanbar
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4917834
+bundleId: 5159746
+url: https://jumanbar.shinyapps.io/iNatUy_priority_map/
+when: 1634756617.16631
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: data/grid_Uruguay.rds|data/iNatUY.rds|data/Uruguay_map.rds

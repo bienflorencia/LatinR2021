@@ -27,12 +27,13 @@ grid_Uruguay <- readRDS('data/grid_Uruguay.rds')
 last_date <- max(iNatUY$observed_on, na.rm = TRUE)
 
 iNatUY_GIS <- iNatUY %>% 
-  dplyr::mutate(year = lubridate::year(observed_on),
+  dplyr::mutate(year_month = paste0(lubridate::year(observed_on), '-', 
+                                    lubridate::month(observed_on)),
                 last_year = observed_on + 365 >= last_date) %>% 
   dplyr::filter(captive_cultivated == FALSE,
                 coordinates_obscured == FALSE) %>% 
   dplyr::filter(!is.na(taxon_species_name) & !is.na(iconic_taxon_name)) %>% 
-  dplyr::select(observed_on, year, last_year,
+  dplyr::select(observed_on, year_month, last_year,
                 taxon_id,
                 scientific_name, 
                 class = taxon_class_name, 
@@ -49,16 +50,16 @@ iNatUY_GIS <- iNatUY %>%
 
 
 # JOIN espacial -----
-# grid_join <- sf::st_join(
-#   x = grid_Uruguay,
-#   y = iNatUY_GIS %>%
-#     dplyr::select(taxon_id, species,
-#                   observed_on, year, last_year,
-#                   iconic_taxon_name),
-#   left = TRUE, join = sf::st_contains)
-# 
+grid_join <- sf::st_join(
+  x = grid_Uruguay,
+  y = iNatUY_GIS %>%
+    dplyr::select(taxon_id, species,
+                  observed_on, year_month, last_year,
+                  iconic_taxon_name),
+  left = TRUE, join = sf::st_contains)
+
 # saveRDS(grid_join, 'data/grid_join.rds')
-grid_join <- readRDS('data/grid_join.rds')
+# grid_join <- readRDS('data/grid_join.rds')
 
 # cantidad de particiones: 377
 # grid_join$grid_id %>% unique %>% length
@@ -67,9 +68,9 @@ grid_join <- readRDS('data/grid_join.rds')
 # writeLines(mis_etiquetas, 'data/mis_etiquetas.txt')
 mis_etiquetas <- readLines('data/mis_etiquetas.txt')
 
-grid_join %>%
-  dplyr::filter(!is.na(iconic_taxon_name)) %>% 
-  dplyr::count(iconic_taxon_name)
+# grid_join %>%
+#   dplyr::filter(!is.na(iconic_taxon_name)) %>% 
+#   dplyr::count(iconic_taxon_name)
 
 grid_iNatUY_ranking <- 
   grid_join %>%
@@ -79,7 +80,7 @@ grid_iNatUY_ranking <-
   dplyr::summarise(
     area = as.numeric(dplyr::first(area)),
     spatial_intensity = dplyr::n() / area,
-    temporal_intensity = dplyr::n_distinct(year, na.rm = TRUE),
+    temporal_intensity = dplyr::n_distinct(year_month, na.rm = TRUE),
     species_richness = dplyr::n_distinct(taxon_id, na.rm = TRUE),
     n_new_species_last_year = 
       nuevas_spp(taxon_id[last_year], taxon_id[!last_year]),  
@@ -87,10 +88,10 @@ grid_iNatUY_ranking <-
     .groups = 'drop') %>% 
   # Reescalamientos:
   dplyr::mutate(
-    spatial_intensity = scales::rescale(spatial_intensity, to = 1:0),
-    temporal_intensity = scales::rescale(temporal_intensity, to = 1:0),
+    spatial_intensity = scales::rescale(spatial_intensity, to = 0:1),
+    temporal_intensity = scales::rescale(temporal_intensity, to = 0:1),
     indice_prioridad = 
-      scales::rescale(temporal_intensity + spatial_intensity, to = 0:1),
+      scales::rescale(temporal_intensity + spatial_intensity, to = 1:0),
     ranking = rank(indice_prioridad, ties.method = 'max', na.last = TRUE) %>%
       scales::rescale(to = 1:0)
     # etiqueta = domain2labels(indice_prioridad, 5, labels = mis_etiquetas)
@@ -105,17 +106,17 @@ grid_iNatUY_ranking_groups <-
   dplyr::summarise(
     area = as.numeric(dplyr::first(area)),
     spatial_intensity = n() / area,
-    temporal_intensity = dplyr::n_distinct(year, na.rm = TRUE),
+    temporal_intensity = dplyr::n_distinct(year_month, na.rm = TRUE),
     species_richness = dplyr::n_distinct(taxon_id, na.rm = TRUE),
     n_new_species_last_year = 
       nuevas_spp(taxon_id[last_year], taxon_id[!last_year]),  
     prop_new_species_last_year = n_new_species_last_year / species_richness) %>% 
   # Reescalamientos:
   dplyr::mutate(
-    spatial_intensity = scales::rescale(spatial_intensity, to = 1:0),
-    temporal_intensity = scales::rescale(temporal_intensity, to = 1:0),
+    spatial_intensity = scales::rescale(spatial_intensity, to = 0:1),
+    temporal_intensity = scales::rescale(temporal_intensity, to = 0:1),
     indice_prioridad = 
-      scales::rescale(temporal_intensity + spatial_intensity, to = 0:1),
+      scales::rescale(temporal_intensity + spatial_intensity, to = 1:0),
     ranking = rank(indice_prioridad, ties.method = 'max', na.last = TRUE) %>%
       scales::rescale(to = 1:0)
     # etiqueta = domain2labels(indice_prioridad, 5, labels = mis_etiquetas)
@@ -126,14 +127,16 @@ grid_iNatUY_ranking_groups <-
     id_cols = grid_id, 
     names_from = iconic_taxon_name, 
     values_from = c(indice_prioridad,
+                    spatial_intensity,
+                    temporal_intensity,
                     # etiqueta,
                     ranking,
                     species_richness,
                     n_new_species_last_year,
                     prop_new_species_last_year),
-    values_fill = c(list(species_richness = 0),
-                    list(n_new_species_last_year = 0),
-                    list(prop_new_species_last_year = 0)))
+    values_fill = list(species_richness = 0, 
+                       n_new_species_last_year = 0,
+                       prop_new_species_last_year = 0))
 
 datos <- grid_Uruguay %>% 
   dplyr::left_join(sf::st_drop_geometry(grid_iNatUY_ranking[-2]), 

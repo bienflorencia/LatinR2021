@@ -4,14 +4,18 @@ library(sf)
 library(leaflet)
 library(shiny)
 
+# Uruguay <- readRDS('data/Uruguay_map.rds')
+# grid_join <- readRDS('data/grid_join.rds')
+
 # Documentación para leaflet en shiny:
 # https://rstudio.github.io/leaflet/shiny.html
 
-source('R/funciones.R', local = TRUE, encoding = 'UTF-8')
+# Demo:
+# https://jumanbar.shinyapps.io/iNatUy_priority_map/
+
 mis_etiquetas <- readLines('data/mis_etiquetas.txt')
-# Uruguay <- readRDS('data/Uruguay_map.rds')
-# grid_join <- readRDS('data/grid_join.rds')
 datos <- readRDS('data/datos.rds')
+
 # Hay que ver qué hacer con algunos grupos. Por lo menos con Chromista y
 # Protozoa da errores
 grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
@@ -19,6 +23,13 @@ grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
           "Actinopterygii"
           # "Chromista", "Protozoa")
 )
+
+cols_base <- c('grid_id', 'area', 'ranking', 'indice_prioridad', 
+               'spatial_intensity',
+               'temporal_intensity', 'species_richness', 
+               'n_new_species_last_year', 'prop_new_species_last_year')
+
+source('R/funciones.R', local = TRUE, encoding = 'UTF-8')
 
 # spp_counts <- grid_join %>% 
 #   sf::st_drop_geometry() %>% 
@@ -58,8 +69,10 @@ ui <- bootstrapPage(
       selectInput('grupo', label = 'Grupo', choices = grac, selected = "Todos"),
       tabsetPanel(type = "pills",
                   tabPanel("Celda", htmlOutput('info_celda')),
-                  tabPanel("Metricas (toy example)", textOutput("metricas")),
-                  tabPanel("graficos (toy example)", plotOutput("graficos"))
+                  tabPanel("Metricas", textOutput("metricas")),
+                  tabPanel("graficos",
+                           h4("Ejemplo de juguete..."),
+                           plotOutput("graficos"))
       )
     )))
 # Link a datos de origen
@@ -72,10 +85,19 @@ ui <- bootstrapPage(
 server <- function(input, output) {
   
   datos_grupo <- reactive({
-    d <- datos %>% 
+    datos %>% 
       data_filter(grupo = input$grupo) %>% 
-      dplyr::mutate(etiqueta = domain2labels(indice_prioridad, 
-                                             labels = mis_etiquetas))
+      dplyr::mutate(
+        etiqueta = domain2labels(indice_prioridad, 
+                                 labels = mis_etiquetas),
+        indice_prioridad = 
+          indice_prioridad %>% 
+          round(3) %>%
+          as.character() %>% 
+          tidyr::replace_na('Sin registros!')
+      ) %>%
+      dplyr::mutate_at(vars(-indice_prioridad, -x, -etiqueta),
+                       ~ tidyr::replace_na(., 0))
   }) 
   
   # Construcción del mapa:  
@@ -96,13 +118,15 @@ server <- function(input, output) {
   })  
   
   # Pestañas -----
+  # 
+  # . Celda ----
   output$info_celda <- renderText({
     if (is.null(input$map_shape_click$id))
       return("No hay celda seleccionada")
     # # Debug:
-    # dc <- datos %>% 
-    #   data_filter('Todos') %>% 
-    #   filter(grid_id == 178) %>% 
+    # dc <- datos %>%
+    #   data_filter('Todos') %>%
+    #   filter(grid_id == 178) %>%
     #   sf::st_drop_geometry()
     out <- tags$h4("Información sobre la celda seleccionada:")
     dc <- datos_celda()
@@ -111,7 +135,10 @@ server <- function(input, output) {
       sep = '</br>',
       out,
       paste0('ID de la Celda: ', input$map_shape_click$id),
-      paste0('Indice de prioridad: ', round(dc$indice_prioridad, 3)),
+      paste0('Área: ', round(dc$area / 1e4), ' hás'),
+      paste0('Indice de prioridad: ', dc$indice_prioridad),
+      paste0('Intensidad espacial: ', round(dc$spatial_intensity, 3)),
+      paste0('Intensidad temporal: ', round(dc$temporal_intensity, 3)),
       paste0('Riqueza de especies: ', as.integer(dc$species_richness)),
       paste0('# Especies nuevas registradas en el último año: ', 
              dc$n_new_species_last_year),
@@ -121,10 +148,12 @@ server <- function(input, output) {
     HTML(out)
   })
   
+  # . Métricas ----
   output$metricas <- renderText({
     "Documentación sobre las métricas usadas"
   })
   
+  # . Gráficos ----
   output$graficos <- renderCachedPlot(
     cacheKeyExpr = input$grupo, {
       plot(cars)
