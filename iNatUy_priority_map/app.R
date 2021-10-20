@@ -9,7 +9,8 @@ library(shiny)
 
 source('R/funciones.R', local = TRUE, encoding = 'UTF-8')
 mis_etiquetas <- readLines('data/mis_etiquetas.txt')
-Uruguay <- readRDS('data/Uruguay_map.rds')
+# Uruguay <- readRDS('data/Uruguay_map.rds')
+# grid_join <- readRDS('data/grid_join.rds')
 datos <- readRDS('data/datos.rds')
 # Hay que ver qué hacer con algunos grupos. Por lo menos con Chromista y
 # Protozoa da errores
@@ -18,6 +19,11 @@ grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
           "Actinopterygii"
           # "Chromista", "Protozoa")
 )
+
+# spp_counts <- grid_join %>% 
+#   sf::st_drop_geometry() %>% 
+#   count(grid_id, species) %>% 
+#   arrange(grid_id, desc(n))
 
 mapa_base <- leaflet() %>%
   setView(-51.4, -32.6, zoom = 6) %>% 
@@ -50,7 +56,7 @@ ui <- bootstrapPage(
       draggable = TRUE,
       top = 10, right = 10,
       selectInput('grupo', label = 'Grupo', choices = grac, selected = "Todos"),
-      tabsetPanel(type = "tabs",
+      tabsetPanel(type = "pills",
                   tabPanel("Celda", htmlOutput('info_celda')),
                   tabPanel("Metricas (toy example)", textOutput("metricas")),
                   tabPanel("graficos (toy example)", plotOutput("graficos"))
@@ -64,14 +70,6 @@ ui <- bootstrapPage(
 
 # SERVER ----
 server <- function(input, output) {
-  
-  # Filtrar los datos para quedarnos sólo con los del año seleccionado:
-  # datos_anio <- reactive({
-  #   datos %>%
-  #     filter(anio == input$ano) %>% 
-  #     arrange(nomdepto)
-  #   # Este objeto se usará tanto para el popup del mapa como para la tabla.
-  # })
   
   datos_grupo <- reactive({
     d <- datos %>% 
@@ -99,22 +97,26 @@ server <- function(input, output) {
   
   # Pestañas -----
   output$info_celda <- renderText({
+    if (is.null(input$map_shape_click$id))
+      return("No hay celda seleccionada")
     # # Debug:
     # dc <- datos %>% 
     #   data_filter('Todos') %>% 
     #   filter(grid_id == 178) %>% 
     #   sf::st_drop_geometry()
-    out <- "Información sobre la celda seleccionada:"
+    out <- tags$h4("Información sobre la celda seleccionada:")
     dc <- datos_celda()
     
-    out <- paste(sep = '</br>',
-                 out,
-                 paste0('Indice de prioridad: ', round(dc$indice_prioridad, 3)),
-                 paste0('Riqueza de especies: ', as.integer(dc$species_richness)),
-                 paste0('# Especies nuevas registradas en el último año: ', 
-                        dc$n_new_species_last_year),
-                 paste0('% Especies nuevas en último año, en relación a la riqueza: ', 
-                        scales::percent(dc$prop_new_species_last_year))
+    out <- paste(
+      sep = '</br>',
+      out,
+      paste0('ID de la Celda: ', input$map_shape_click$id),
+      paste0('Indice de prioridad: ', round(dc$indice_prioridad, 3)),
+      paste0('Riqueza de especies: ', as.integer(dc$species_richness)),
+      paste0('# Especies nuevas registradas en el último año: ', 
+             dc$n_new_species_last_year),
+      paste0('% Especies nuevas en último año, en relación a la riqueza: ', 
+             scales::percent(dc$prop_new_species_last_year))
     )
     HTML(out)
   })
@@ -192,4 +194,5 @@ server <- function(input, output) {
   # })
 }
 
-shinyServer(server)
+# Run app ----
+shinyApp(ui = ui, server = server)

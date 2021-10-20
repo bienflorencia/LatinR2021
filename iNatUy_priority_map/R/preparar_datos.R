@@ -49,13 +49,16 @@ iNatUY_GIS <- iNatUY %>%
 
 
 # JOIN espacial -----
-grid_join <- sf::st_join(
-  x = grid_Uruguay,
-  y = iNatUY_GIS %>%
-    dplyr::select(taxon_id, species,
-                  observed_on, year, last_year,
-                  iconic_taxon_name),
-  left = TRUE, join = sf::st_contains)
+# grid_join <- sf::st_join(
+#   x = grid_Uruguay,
+#   y = iNatUY_GIS %>%
+#     dplyr::select(taxon_id, species,
+#                   observed_on, year, last_year,
+#                   iconic_taxon_name),
+#   left = TRUE, join = sf::st_contains)
+# 
+# saveRDS(grid_join, 'data/grid_join.rds')
+grid_join <- readRDS('data/grid_join.rds')
 
 # cantidad de particiones: 377
 # grid_join$grid_id %>% unique %>% length

@@ -385,7 +385,7 @@ mkpopup <- function(grid_id, etiqueta, grupo = "Todos") {
   # names(d) <- cols_base
   
   out <- paste0(
-    grupo_html, "Grid ID:", grid_id, '</em>', 
+    grupo_html, "ID Celda: ", grid_id, '</em>', 
     "<br><strong>Prioridad: </strong>",
     etiqueta
     # replace_na(round(100 * datos$ranking, 1), 0), "%",
