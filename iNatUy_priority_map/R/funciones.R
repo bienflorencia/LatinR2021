@@ -435,16 +435,16 @@ data_filter <- function(datos, grupo = "Todos") {
                    'temporal_intensity', 'species_richness', 
                    'n_new_species_last_year', 'prop_new_species_last_year')
   
-  cols_base <- cols_base[cols_base != 'area']
+  cols_base_a <- cols_base[cols_base != 'area']
   # out <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
   
   # print(cols_base) # debug
-  columnas <- c('grid_id', paste0(cols_base[-1], gr), 'x')
+  columnas <- c('grid_id', 'area', paste0(cols_base_a[-1], gr), 'x')
   
   # print(columnas) # debug
   out <- dplyr::select(datos, tidyselect::all_of(columnas))
   
-  names(out) <- c(cols_base, 'x')
+  names(out) <- gsub(paste0('_', grupo, '$'), '', names(out))
   return(out)
 }
   
