@@ -1,7 +1,11 @@
+# GLOBAL ----
 library(tidyverse)
 library(sf)
 library(leaflet)
 library(shiny)
+
+# Documentación para leaflet en shiny:
+# https://rstudio.github.io/leaflet/shiny.html
 
 source('R/funciones.R', local = TRUE, encoding = 'UTF-8')
 mis_etiquetas <- readLines('data/mis_etiquetas.txt')
@@ -11,37 +15,54 @@ datos <- readRDS('data/datos.rds')
 # Protozoa da errores
 grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
           "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia", 
-          "Actinopterygii", "Chromista", "Protozoa")
+          "Actinopterygii"
+          # "Chromista", "Protozoa")
+)
 
+mapa_base <- leaflet() %>%
+  setView(-51.4, -32.6, zoom = 6) %>% 
+  # fitBounds(-58.8, -35.2, -52.8, -29.9) %>% 
+  addProviderTiles(providers$OpenTopoMap,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Open Topo Map') %>%
+  addProviderTiles(providers$Esri.WorldImagery,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Imagen') %>% 
+  addTiles(group = "Open Street Map") %>% 
+  # Control de capas:
+  addLayersControl(
+    position = 'bottomleft',
+    baseGroups = c("Open Street Map", "Open Topo Map", "Imagen"),
+    overlayGroups = c("Grilla"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
 
-# ui <- bootstrapPage(
-#   div(
-#     class="outer",
-#     leafletOutput("map", width="100%", height="100%"),
-#     absolutePanel(id = 'controls', class = 'panel panel-default',
-#                   top = 75, right = 55, width = 350, )
-#   )
-# )
+# UI ----
+ui <- bootstrapPage(
+  tags$head(includeCSS('styles.css')),
+  leafletOutput(outputId = 'map', height = '100vh'),
+  div(
+    class = 'outer',
+    absolutePanel(
+      width = 400, height = 'auto',
+      class = "panel panel-default",
+      id = 'controls',
+      draggable = TRUE,
+      top = 10, right = 10,
+      selectInput('grupo', label = 'Grupo', choices = grac, selected = "Todos"),
+      tabsetPanel(type = "tabs",
+                  tabPanel("Celda", htmlOutput('info_celda')),
+                  tabPanel("Metricas (toy example)", textOutput("metricas")),
+                  tabPanel("graficos (toy example)", plotOutput("graficos"))
+      )
+    )))
+# Link a datos de origen
+# helpText("Repositorio",
+#          a("Enlace al repositorio",
+#            href = "https://github.com/bienflorencia/LatinR2021"),
+#          "." )
 
-ui <- fluidPage(
-  
-  # Titulo
-  fluidPage(titlePanel("PRUEBA")),
-  sidebarLayout(
-    position = 'right',
-    mainPanel = mainPanel(
-      leafletOutput(outputId = 'map', height = '80vh'),
-      # Link a datos de origen
-      helpText("BLABLA",
-               a("blabla",
-                 href = "https://github.com/bienflorencia/LatinR2021"),
-               "." )
-    ),
-    sidebarPanel = sidebarPanel(
-      selectInput('grupo', label = NULL, choices = grac, selected = "Todos")
-    )
-))
-  
+# SERVER ----
 server <- function(input, output) {
   
   # Filtrar los datos para quedarnos sólo con los del año seleccionado:
@@ -61,49 +82,103 @@ server <- function(input, output) {
   
   # Construcción del mapa:  
   output$map <- renderLeaflet({
+    mapa_base 
+  })
+  
+  colorpal <- reactive({
+    colorFactor('RdYlBu', datos_grupo()$etiqueta, reverse = TRUE)
+  })
+  
+  
+  datos_celda <- reactive({
+    gid <- input$map_shape_click$id
+    datos_grupo() %>% 
+      sf::st_drop_geometry() %>% 
+      dplyr::filter(grid_id == gid)
+  })  
+  
+  # Pestañas -----
+  output$info_celda <- renderText({
+    # # Debug:
+    # dc <- datos %>% 
+    #   data_filter('Todos') %>% 
+    #   filter(grid_id == 178) %>% 
+    #   sf::st_drop_geometry()
+    out <- "Información sobre la celda seleccionada:"
+    dc <- datos_celda()
     
-    d <- datos_grupo()
-    print(table(d$etiqueta))
-    pal <- colorFactor('RdYlBu', d$etiqueta, reverse = TRUE)
+    out <- paste(sep = '</br>',
+                 out,
+                 paste0('Indice de prioridad: ', round(dc$indice_prioridad, 3)),
+                 paste0('Riqueza de especies: ', as.integer(dc$species_richness)),
+                 paste0('# Especies nuevas registradas en el último año: ', 
+                        dc$n_new_species_last_year),
+                 paste0('% Especies nuevas en último año, en relación a la riqueza: ', 
+                        scales::percent(dc$prop_new_species_last_year))
+    )
+    HTML(out)
+  })
+  
+  output$metricas <- renderText({
+    "Documentación sobre las métricas usadas"
+  })
+  
+  output$graficos <- renderCachedPlot(
+    cacheKeyExpr = input$grupo, {
+      plot(cars)
+    })
+  
+  grid_id <- reactiveValues()
+  
+  # Map input (debug)-----
+  # observe({
+  #   x <- input$map_shape_click
+  #   print(x)
+  #   
+  # })
+  
+  observe({
+    # print(table(d$etiqueta)) # debug
+    pal <- colorpal()
     
-    mapa <- 
-      leaflet(d) %>%
-      clearBounds() %>% 
-      addTiles(group = "Open Street Map") %>% 
-      addProviderTiles(providers$OpenTopoMap,
-                       options = providerTileOptions(noWrap = TRUE),
-                       group = 'Open Topo Map') %>%
-      addProviderTiles(providers$Esri.WorldImagery,
-                       options = providerTileOptions(noWrap = TRUE),
-                       group = 'Imagen') %>%
+    leafletProxy("map", data = datos_grupo()) %>%
+      clearShapes() %>% 
       addPolygons(
-        weight = .5, 
+        noClip = TRUE,
+        layerId = ~grid_id,
+        weight = .5,
         color = 'white',
         fillColor = ~pal(etiqueta),
         fillOpacity = .5,
         popup = ~mkpopup(grid_id, etiqueta, input$grupo),
-        highlightOptions = highlightOptions(color = "white", 
-                                            weight = 5, 
+        highlightOptions = highlightOptions(color = "white",
+                                            weight = 5,
                                             fillOpacity = .8,
                                             bringToFront = TRUE),
         group = "Grilla"
-      ) %>% 
-      # Control de capas:
-      addLayersControl(
-        baseGroups = c("Open Street Map", "Open Topo Map", "Imagen"),
-        overlayGroups = c("Grilla"),
-        options = layersControlOptions(collapsed = FALSE)
-      ) %>% 
-      # Leyenda de índice de prioridad
-      addLegend(pal = pal, 
-                # values = ~ranking, 
-                values = ~etiqueta, 
-                opacity = .5,
-                position = 'bottomright', 
-                title = 'Prioridad',
-                group = 'Grilla')
+      ) 
+  })
+  
+  observe({
+    d <- datos_grupo()
+    proxy <- leafletProxy("map", data = d)
     
-    print(mapa)
+    # Remove any existing legend, and only if the legend is
+    # enabled, create a new one.
+    proxy %>% clearControls()
+    if (isTruthy(input$grupo)) {
+      pal <- colorpal()
+      proxy %>% 
+        addLegend(
+          data = d, 
+          pal = pal,
+          values = ~etiqueta,
+          opacity = .5,
+          position = 'bottomright',
+          title = 'Prioridad',
+          group = 'Grilla'
+        )
+    }
   })
   
   # Preparar la tabla para la app:
@@ -117,4 +192,4 @@ server <- function(input, output) {
   # })
 }
 
-shinyApp(ui = ui, server = server)
+shinyServer(server)

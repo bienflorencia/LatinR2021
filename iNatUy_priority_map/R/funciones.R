@@ -423,7 +423,7 @@ data_filter <- function(datos, grupo = "Todos") {
   
   columnas <- c('grid_id', paste0(cols_base[-1], gr), 'x')
   
-  print(columnas)
+  # print(columnas) # debug
   out <- dplyr::select(datos, tidyselect::all_of(columnas))
   
   names(out) <- c(cols_base, 'x')

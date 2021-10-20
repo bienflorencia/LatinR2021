@@ -15,12 +15,14 @@ Uruguay <- readRDS('data/Uruguay_map.rds')
 # saveRDS(iNatUY, 'data/iNatUY.rds')
 iNatUY <- readRDS('data/iNatUY.rds')
 
-grid_Uruguay <- 
-  sf::st_make_grid(x = Uruguay, cellsize = 25000, square = FALSE)  %>% 
-  st_intersection(., sf::st_union(Uruguay)) %>% 
-  sf::st_as_sf() %>% 
-  dplyr::mutate(grid_id = 1:nrow(.), 
-                area = sf::st_area(x))
+# grid_Uruguay <- 
+#   sf::st_make_grid(x = Uruguay, cellsize = 25000, square = FALSE)  %>% 
+#   st_intersection(., sf::st_union(Uruguay)) %>% 
+#   sf::st_as_sf() %>% 
+#   dplyr::mutate(grid_id = 1:nrow(.), 
+#                 area = sf::st_area(x))
+# saveRDS(grid_Uruguay, 'data/grid_Uruguay.rds')
+grid_Uruguay <- readRDS('data/grid_Uruguay.rds')
 
 last_date <- max(iNatUY$observed_on, na.rm = TRUE)
 
@@ -150,7 +152,7 @@ d <- datos %>%
 # Paleta de colores (colorblind safe):
 pal <- colorFactor('RdYlBu', d$etiqueta, reverse = TRUE)
 
-# Widget de leaflet:
+# Mapa base ------
 mapa <- 
   leaflet(d) %>%
   clearBounds() %>% 
@@ -189,3 +191,52 @@ mapa <-
             group = 'Grilla')
 
 mapa
+
+# Pruebas -----
+input <- list(grupo = 'Todos')
+d <- data_filter(datos, input$grupo) %>% 
+  mutate(etiqueta = domain2labels(indice_prioridad, labels = mis_etiquetas))
+pal <- colorFactor('RdYlBu', d$etiqueta, reverse = TRUE)
+
+m1 <- leaflet() %>%
+  fitBounds(-58.8, -35.2, -52.8, -29.9) %>% 
+  addProviderTiles(providers$OpenTopoMap,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Open Topo Map') %>%
+  addProviderTiles(providers$Esri.WorldImagery,
+                   options = providerTileOptions(noWrap = TRUE),
+                   group = 'Imagen') %>% 
+  addTiles(group = "Open Street Map") %>% 
+  # Control de capas:
+  addLayersControl(
+    baseGroups = c("Open Street Map", "Open Topo Map", "Imagen"),
+    overlayGroups = c("Grilla"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+m1
+
+m1 %>% 
+  addPolygons(
+    data = d,
+    weight = .5,
+    color = 'white',
+    fillColor = ~pal(etiqueta),
+    fillOpacity = .5,
+    popup = ~mkpopup(grid_id, etiqueta, input$grupo),
+    highlightOptions = highlightOptions(color = "white",
+                                        weight = 5,
+                                        fillOpacity = .8,
+                                        bringToFront = TRUE),
+    group = "Grilla"
+  ) %>% 
+  # Leyenda de índice de prioridad
+  addLegend(
+    data = d, 
+    pal = pal,
+    values = ~etiqueta,
+    opacity = .5,
+    position = 'bottomright',
+    title = 'Prioridad',
+    group = 'Grilla'
+    )

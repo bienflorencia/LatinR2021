@@ -58,7 +58,7 @@ grid_join <- st_join(x = grid_Uruguay,
 #
 # Perdón por el nombre poco desciptivo, es que la usé mucho
 #
-# grid_join <- readRDS('data/grid_join.rds')
+# grid_join <- readRDS('../data/grid_join.rds')
 tabla <- grid_join %>%
   sf::st_drop_geometry() %>%
   dplyr::arrange(observed_on) %>%
@@ -193,6 +193,7 @@ grid_iNatUY_GIS <-
 
 # Vegan: rarefacción ----
 #
+library(vegan)
 S_grid <- as.data.frame(grid_join[, 1:2]) %>%
   group_by(grid_ID) %>%
   summarise(n = n_distinct(taxon_id, na.rm = TRUE))
@@ -245,6 +246,9 @@ lista_acc <- tabla %>%
   map(~ get_acc(.$taxon_id))
 
 plot(lista_acc[[178]])
+
+# Función de gráficos del vegan:
+vegan:::plot.specaccum
 
 pendientes <- sapply(lista_acc, get_slope)
 
