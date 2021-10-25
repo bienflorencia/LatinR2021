@@ -3,10 +3,6 @@ library(tidyverse)
 library(sf)
 library(leaflet)
 library(shiny)
-
-# Uruguay <- readRDS('data/Uruguay_map.rds')
-# grid_join <- readRDS('data/grid_join.rds')
-
 # Documentación para leaflet en shiny:
 # https://rstudio.github.io/leaflet/shiny.html
 
@@ -16,36 +12,35 @@ library(shiny)
 mis_etiquetas <- readLines('data/mis_etiquetas.txt')
 datos <- readRDS('data/datos.rds')
 
-# Hay que ver qué hacer con algunos grupos. Por lo menos con Chromista y
-# Protozoa da errores
-grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
-          "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia", 
-          "Actinopterygii"
-          # "Chromista", "Protozoa")
-)
+# Grupos (iconic_taxon_name):
+# 
+# # Código para obtener grac (ordenados por cantidad de registros):
+# datos %>% 
+#   dplyr::filter(iconic_taxon_name == input$grupo) %>% 
+#   sf::st_drop_geometry() %>%
+#   group_by(iconic_taxon_name) %>%
+#   tally(n_registros) %>%
+#   arrange(desc(n)) %>%
+#   pull(1) %>%
+#   setNames(NULL) %>%
+#   dput
 
-cols_base <- c('grid_id', 'area', 'ranking', 'indice_prioridad', 
-               'spatial_intensity',
-               'temporal_intensity', 'species_richness', 
-               'n_new_species_last_year', 'prop_new_species_last_year')
+grac <- c("Todos", "Plantae", "Aves", "Insecta", "Arachnida", "Reptilia", 
+          "Amphibia", "Mammalia", "Fungi", "Mollusca", "Animalia", 
+          "Actinopterygii", "Protozoa")
+# "Chromista", "Protozoa")
 
 source('R/funciones.R', local = TRUE, encoding = 'UTF-8')
 
-# spp_counts <- grid_join %>% 
-#   sf::st_drop_geometry() %>% 
-#   count(grid_id, species) %>% 
-#   arrange(grid_id, desc(n))
-
 mapa_base <- leaflet() %>%
   setView(-51.4, -32.6, zoom = 6) %>% 
-  # fitBounds(-58.8, -35.2, -52.8, -29.9) %>% 
   addProviderTiles(providers$OpenTopoMap,
                    options = providerTileOptions(noWrap = TRUE),
                    group = 'Open Topo Map') %>%
   addProviderTiles(providers$Esri.WorldImagery,
                    options = providerTileOptions(noWrap = TRUE),
-                   group = 'Imagen') %>% 
-  addTiles(group = "Open Street Map") %>% 
+                   group = 'Imagen') %>%
+  addTiles(group = "Open Street Map") %>%
   # Control de capas:
   addLayersControl(
     position = 'bottomleft',
@@ -55,68 +50,61 @@ mapa_base <- leaflet() %>%
   )
 
 # UI ----
-ui <- bootstrapPage(
-  tags$head(includeCSS('styles.css')),
-  leafletOutput(outputId = 'map', height = '100vh'),
-  div(
-    class = 'outer',
-    absolutePanel(
-      width = 400, height = 'auto',
-      class = "panel panel-default",
-      id = 'controls',
-      draggable = TRUE,
-      top = 10, right = 10,
-      selectInput('grupo', label = 'Grupo', choices = grac, selected = "Todos"),
-      tabsetPanel(type = "pills",
-                  tabPanel("Celda", htmlOutput('info_celda')),
-                  tabPanel("Metricas", textOutput("metricas")),
-                  tabPanel("graficos",
-                           h4("Ejemplo de juguete..."),
-                           plotOutput("graficos"))
-      )
-    )))
-# Link a datos de origen
-# helpText("Repositorio",
-#          a("Enlace al repositorio",
-#            href = "https://github.com/bienflorencia/LatinR2021"),
-#          "." )
+ui <- navbarPage(
+  title = 'Example', theme = shinythemes::shinytheme('sandstone'),
+  tabPanel("Map", 
+           div(class = 'outer',
+               tags$head(includeCSS('styles.css')),
+               leafletOutput('map', height = '91.9vh'),
+               absolutePanel(
+                 id = 'controls',
+                 class = "panel panel-default",
+                 fixed = TRUE,
+                 top = 75, right = 10, left = "auto", bottom = "auto",
+                 width = 400, height = 'auto',
+                 draggable = TRUE,
+                 selectInput('grupo', label = 'Grupo',
+                             choices = grac,
+                             selected = "Todos")
+                 , tags$hr()
+                 , tabsetPanel(type = "pills",
+                               tabPanel("Celda", htmlOutput('info_celda')),
+                               # tabPanel("Metricas", textOutput("metricas")),
+                               tabPanel("graficos",
+                                        # h4("Ejemplo de juguete..."),
+                                        plotOutput("graficos")))
+                 )
+               )
+           )
+  ,     tabPanel("Índice de Prioridad"
+                 # , "sfdadsfasfsdf"
+                 # , includeHTML('www/indice_prioridad.html')
+                 , includeMarkdown('www/indice_prioridad.Rmd')
+                 )
+)
 
 # SERVER ----
 server <- function(input, output) {
   
+  output$map <- renderLeaflet({
+    mapa_base
+  })
+  
   datos_grupo <- reactive({
     datos %>% 
-      data_filter(grupo = input$grupo) %>% 
-      dplyr::mutate(
-        etiqueta = domain2labels(indice_prioridad, 
-                                 labels = mis_etiquetas),
-        indice_prioridad = 
-          indice_prioridad %>% 
-          round(3) %>%
-          as.character() %>% 
-          tidyr::replace_na('Sin registros!')
-      ) %>%
-      dplyr::mutate_at(vars(-indice_prioridad, -x, -etiqueta),
-                       ~ tidyr::replace_na(., 0))
+      dplyr::filter(iconic_taxon_name == input$grupo)
   }) 
-  
-  # Construcción del mapa:  
-  output$map <- renderLeaflet({
-    mapa_base 
-  })
   
   colorpal <- reactive({
     colorFactor('RdYlBu', datos_grupo()$etiqueta, reverse = TRUE)
   })
-  
   
   datos_celda <- reactive({
     gid <- input$map_shape_click$id
     datos_grupo() %>% 
       sf::st_drop_geometry() %>% 
       dplyr::filter(grid_id == gid)
-  })  
-  
+  })
   # Pestañas -----
   # 
   # . Celda ----
@@ -124,49 +112,60 @@ server <- function(input, output) {
     if (is.null(input$map_shape_click$id))
       return("No hay celda seleccionada")
     # # Debug:
-    # dc <- datos %>%
-    #   data_filter('Todos') %>%
+    # dc <- datos %>% 
+    #   dplyr::filter(iconic_taxon_name == 'Todos') 
     #   filter(grid_id == 178) %>%
     #   sf::st_drop_geometry()
-    out <- tags$h4("Información sobre la celda seleccionada:")
+    # out <- tags$h4("Información sobre la celda seleccionada:")
     dc <- datos_celda()
+    # print(dc) # debug
+    titulo <- paste0('<strong>Indice de prioridad: ', 
+                     round(dc$indice_prioridad, 3),
+                     '</strong>')
     
+    subtitulo <- ifelse(dc$etiqueta == mis_etiquetas[length(mis_etiquetas)],
+                        paste0(dc$etiqueta, '!'), 
+                        paste0('Prioridad:', dc$etiqueta))
     out <- paste(
       sep = '</br>',
-      out,
+      titulo,
+      paste0('(percentil ', scales::percent(dc$indice_prioridad), ')'),
+      paste0(tags$strong(subtitulo)),
+      '</br>',
       paste0('ID de la Celda: ', input$map_shape_click$id),
-      paste0('Área: ', round(dc$area / 1e4), ' hás'),
-      paste0('Indice de prioridad: ', dc$indice_prioridad),
+      paste0('Área: ', round(dc$area), ' Km2'),
+      paste0('Cantidad de egistros: ', dc$n_registros),
       paste0('Intensidad espacial: ', round(dc$spatial_intensity, 3)),
       paste0('Intensidad temporal: ', round(dc$temporal_intensity, 3)),
       paste0('Riqueza de especies: ', as.integer(dc$species_richness)),
-      paste0('# Especies nuevas registradas en el último año: ', 
-             dc$n_new_species_last_year),
-      paste0('% Especies nuevas en último año, en relación a la riqueza: ', 
-             scales::percent(dc$prop_new_species_last_year))
+      paste0('\u21b3 Último año: ', dc$n_new_species_last_year, ' (', 
+             scales::percent(dc$prop_new_species_last_year), ')')
     )
     HTML(out)
-  })
-  
-  # . Métricas ----
-  output$metricas <- renderText({
-    "Documentación sobre las métricas usadas"
   })
   
   # . Gráficos ----
   output$graficos <- renderCachedPlot(
     cacheKeyExpr = input$grupo, {
-      plot(cars)
+      pal <- colorpal()
+      datos_grupo() %>%
+      # d %>%
+        ggplot() +
+        aes(n_registros, species_richness, color = etiqueta) +
+        geom_point() +
+        scale_color_manual('Prioridad', 
+                           values = pal(mis_etiquetas),
+                           breaks = mis_etiquetas) +
+        theme(legend.position = 'bottom') +
+        ylab('Riqueza de especies (S)') +
+        xlab('Número de registros (n)') +
+        ggtitle(
+          label = paste('Grupo:', input$grupo),
+          subtitle = 'Riqueza vs Registros por celda'
+          )
     })
   
   grid_id <- reactiveValues()
-  
-  # Map input (debug)-----
-  # observe({
-  #   x <- input$map_shape_click
-  #   print(x)
-  #   
-  # })
   
   observe({
     # print(table(d$etiqueta)) # debug
@@ -211,17 +210,8 @@ server <- function(input, output) {
         )
     }
   })
-  
-  # Preparar la tabla para la app:
-  # output$tabla <- DT::renderDataTable({
-  #   datos_anio() %>% 
-  #     select(-anio, Departamento = nomdepto, Gini = gini) %>% 
-  #   DT::datatable(rownames = FALSE, options = list(lengthMenu = c(5, 10, 19), 
-  #                                                  pageLength = 19)) %>% 
-  #     formatPercentage('Gini', 2)
-  #     
-  # })
 }
 
 # Run app ----
 shinyApp(ui = ui, server = server)
+

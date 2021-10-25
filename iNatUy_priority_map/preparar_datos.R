@@ -56,7 +56,10 @@ grid_join <- sf::st_join(
     dplyr::select(taxon_id, species,
                   observed_on, year_month, last_year,
                   iconic_taxon_name),
-  left = TRUE, join = sf::st_contains)
+  left = TRUE, join = sf::st_contains) %>% 
+  dplyr::filter(!is.na(iconic_taxon_name),
+                # Animalia no sé si tiene sentido:
+                iconic_taxon_name != 'Animalia')
 
 # saveRDS(grid_join, 'data/grid_join.rds')
 # grid_join <- readRDS('data/grid_join.rds')
@@ -72,88 +75,78 @@ mis_etiquetas <- readLines('data/mis_etiquetas.txt')
 #   dplyr::filter(!is.na(iconic_taxon_name)) %>% 
 #   dplyr::count(iconic_taxon_name)
 
-grid_iNatUY_ranking <- 
-  grid_join %>%
-  dplyr::filter(!is.na(iconic_taxon_name)) %>% 
-  dplyr::group_by(grid_id) %>% 
-  # Indicadores:
-  dplyr::summarise(
-    area = as.numeric(dplyr::first(area)),
-    spatial_intensity = dplyr::n() / area,
-    temporal_intensity = dplyr::n_distinct(year_month, na.rm = TRUE),
-    species_richness = dplyr::n_distinct(taxon_id, na.rm = TRUE),
-    n_new_species_last_year = 
-      nuevas_spp(taxon_id[last_year], taxon_id[!last_year]),  
-    prop_new_species_last_year = n_new_species_last_year / species_richness, 
-    .groups = 'drop') %>% 
-  # Reescalamientos:
-  dplyr::mutate(
-    spatial_intensity = scales::rescale(spatial_intensity, to = 0:1),
-    temporal_intensity = scales::rescale(temporal_intensity, to = 0:1),
-    indice_prioridad = 
-      scales::rescale(temporal_intensity + spatial_intensity, to = 1:0),
-    ranking = rank(indice_prioridad, ties.method = 'max', na.last = TRUE) %>%
-      scales::rescale(to = 1:0)
-    # etiqueta = domain2labels(indice_prioridad, 5, labels = mis_etiquetas)
-    )
+grid_iNatUy <- 
+  dplyr::mutate(grid_join, iconic_taxon_name = 'Todos') %>% 
+  dplyr::bind_rows(grid_join)
+
+rownames(grid_iNatUy) <- NULL
+
+# Esto es para tener el set completo de celdas en una tabla, con el número de
+# registros para todos los casos, incluyedo ceros
+grid_iNatUy_reg <-
+  grid_iNatUy %>%
+  sf::st_drop_geometry() %>% 
+  dplyr::count(grid_id, iconic_taxon_name) %>% 
+  tidyr::pivot_wider(id_cols = grid_id, 
+                     names_from = iconic_taxon_name, 
+                     values_from = n, 
+                     values_fill = list(n = 0)) %>% 
+  dplyr::left_join(sf::st_drop_geometry(grid_Uruguay), ., by = 'grid_id') %>% 
+  tidyr::pivot_longer(-1:-2, 
+                      names_to = 'iconic_taxon_name', 
+                      values_to = 'n_registros')
+
 
 # Por grupo
-grid_iNatUY_ranking_groups <-
-  grid_join %>%
-  dplyr::filter(!is.na(iconic_taxon_name)) %>% 
+grid_iNatUY_ip <-
+  grid_iNatUy_reg %>%
+  dplyr::left_join(grid_iNatUy) %>% 
   dplyr::group_by(grid_id, iconic_taxon_name) %>% 
   # Indicadores:
   dplyr::summarise(
-    area = as.numeric(dplyr::first(area)),
-    spatial_intensity = n() / area,
+    n_registros = dplyr::first(n_registros),
+    area = as.numeric(dplyr::first(area)) / 1e6,
+    spatial_intensity = n_registros / area,
     temporal_intensity = dplyr::n_distinct(year_month, na.rm = TRUE),
     species_richness = dplyr::n_distinct(taxon_id, na.rm = TRUE),
     n_new_species_last_year = 
       nuevas_spp(taxon_id[last_year], taxon_id[!last_year]),  
-    prop_new_species_last_year = n_new_species_last_year / species_richness) %>% 
+    prop_new_species_last_year = 
+      dplyr::if_else(species_richness > 0, 
+                     n_new_species_last_year / species_richness, 
+                     0)) %>%
+  dplyr::group_by(iconic_taxon_name) %>% 
   # Reescalamientos:
   dplyr::mutate(
     spatial_intensity = scales::rescale(spatial_intensity, to = 0:1),
     temporal_intensity = scales::rescale(temporal_intensity, to = 0:1),
     indice_prioridad = 
-      scales::rescale(temporal_intensity + spatial_intensity, to = 1:0),
-    ranking = rank(indice_prioridad, ties.method = 'max', na.last = TRUE) %>%
-      scales::rescale(to = 1:0)
-    # etiqueta = domain2labels(indice_prioridad, 5, labels = mis_etiquetas)
+      calc_ip(temporal_intensity, spatial_intensity, n_registros),
+    etiqueta = mketiquetas(indice_prioridad, n_registros, 
+                           labels = mis_etiquetas)
     ) %>% 
-  dplyr::ungroup() %>% 
-  sf::st_drop_geometry()  %>% 
-  tidyr::pivot_wider(
-    id_cols = grid_id, 
-    names_from = iconic_taxon_name, 
-    values_from = c(indice_prioridad,
-                    spatial_intensity,
-                    temporal_intensity,
-                    # etiqueta,
-                    ranking,
-                    species_richness,
-                    n_new_species_last_year,
-                    prop_new_species_last_year),
-    values_fill = list(species_richness = 0, 
-                       n_new_species_last_year = 0,
-                       prop_new_species_last_year = 0))
+  dplyr::ungroup()
 
-datos <- grid_Uruguay %>% 
-  dplyr::left_join(sf::st_drop_geometry(grid_iNatUY_ranking[-2]), 
-                   by = 'grid_id') %>% 
-  dplyr::left_join(grid_iNatUY_ranking_groups, by = 'grid_id') %>% 
+# Prueba ----
+# 
+# Todos deben dar n = nrow(grid_Uruguay) (= 377)
+grid_iNatUY_ip %>% 
+  group_by(iconic_taxon_name) %>% 
+  summarise(n = n_distinct(grid_id))
+
+datos <- grid_Uruguay %>%
+  dplyr::select(-area) %>% 
+  dplyr::left_join(grid_iNatUY_ip, by = 'grid_id') %>% 
   sf::st_transform(crs = 4326)
-
-  # dplyr::mutate_at(dplyr::vars(tidyselect::starts_with('etiqueta')), 
-  #                  ~ tidyr::replace_na(., mis_etiquetas[length(mis_etiquetas)]))
 
 # saveRDS(datos, "data/datos.rds")
 
+datos_split <- split(datos, datos$iconic_taxon_name)
+# saveRDS(datos_split, "data/datos_split.rds")
+
 # Datos x grupo:
 d <- datos %>% 
-  data_filter(grupo = 'Aves') %>% 
-  dplyr::mutate(etiqueta = domain2labels(indice_prioridad, 
-                                         labels = mis_etiquetas))
+  dplyr::filter(iconic_taxon_name == 'Aves')
 
 # Paleta de colores (colorblind safe):
 pal <- colorFactor('RdYlBu', d$etiqueta, reverse = TRUE)
@@ -201,7 +194,7 @@ mapa
 # Pruebas -----
 input <- list(grupo = 'Todos')
 d <- data_filter(datos, input$grupo) %>% 
-  mutate(etiqueta = domain2labels(indice_prioridad, labels = mis_etiquetas))
+  mutate(etiqueta = mketiquetas(indice_prioridad, labels = mis_etiquetas))
 pal <- colorFactor('RdYlBu', d$etiqueta, reverse = TRUE)
 
 m1 <- leaflet() %>%
