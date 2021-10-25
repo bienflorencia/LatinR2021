@@ -51,17 +51,17 @@ mapa_base <- leaflet() %>%
 
 # UI ----
 ui <- navbarPage(
-  title = 'Example', theme = shinythemes::shinytheme('sandstone'),
-  tabPanel("Map", 
+  title = 'iNatUy: cobertura', theme = shinythemes::shinytheme('sandstone'),
+  tabPanel("Mapa", 
            div(class = 'outer',
                tags$head(includeCSS('styles.css')),
-               leafletOutput('map', height = '91.9vh'),
+               leafletOutput('map', height = '89.5vh'),
                absolutePanel(
                  id = 'controls',
                  class = "panel panel-default",
                  fixed = TRUE,
                  top = 75, right = 10, left = "auto", bottom = "auto",
-                 width = 400, height = 'auto',
+                 width = 300, height = 'auto',
                  draggable = TRUE,
                  selectInput('grupo', label = 'Grupo',
                              choices = grac,
