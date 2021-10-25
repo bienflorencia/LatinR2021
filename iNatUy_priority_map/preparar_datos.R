@@ -94,7 +94,8 @@ grid_iNatUy_reg <-
   dplyr::left_join(sf::st_drop_geometry(grid_Uruguay), ., by = 'grid_id') %>% 
   tidyr::pivot_longer(-1:-2, 
                       names_to = 'iconic_taxon_name', 
-                      values_to = 'n_registros')
+                      values_to = 'n_registros') %>% 
+  dplyr::mutate(n_registros = tidyr::replace_na(n_registros, 0))
 
 
 # Por grupo
@@ -118,8 +119,6 @@ grid_iNatUY_ip <-
   dplyr::group_by(iconic_taxon_name) %>% 
   # Reescalamientos:
   dplyr::mutate(
-    spatial_intensity = scales::rescale(spatial_intensity, to = 0:1),
-    temporal_intensity = scales::rescale(temporal_intensity, to = 0:1),
     indice_prioridad = 
       calc_ip(temporal_intensity, spatial_intensity, n_registros),
     etiqueta = mketiquetas(indice_prioridad, n_registros, 
@@ -141,7 +140,7 @@ datos <- grid_Uruguay %>%
 
 # saveRDS(datos, "data/datos.rds")
 
-datos_split <- split(datos, datos$iconic_taxon_name)
+# datos_split <- split(datos, datos$iconic_taxon_name)
 # saveRDS(datos_split, "data/datos_split.rds")
 
 # Datos x grupo:

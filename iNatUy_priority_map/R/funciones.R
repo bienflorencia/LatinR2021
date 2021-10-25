@@ -43,6 +43,8 @@
 #'
 #' @examples
 calc_ip <- function(ti, si, n.reg) {
+  ti = scales::rescale(ti, to = 0:1)
+  si = scales::rescale(si, to = 0:1)
   suma <- ti + si
   r <- rank(suma, ties.method = 'min', na.last = TRUE)
   # Para dar mayor prioridad a los que tienen 0 registros:

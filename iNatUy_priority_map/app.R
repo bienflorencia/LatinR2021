@@ -134,7 +134,7 @@ server <- function(input, output) {
       '</br>',
       paste0('ID de la Celda: ', input$map_shape_click$id),
       paste0('Área: ', round(dc$area), ' Km2'),
-      paste0('Cantidad de egistros: ', dc$n_registros),
+      paste0('Cantidad de registros: ', dc$n_registros),
       paste0('Intensidad espacial: ', round(dc$spatial_intensity, 3)),
       paste0('Intensidad temporal: ', round(dc$temporal_intensity, 3)),
       paste0('Riqueza de especies: ', as.integer(dc$species_richness)),
