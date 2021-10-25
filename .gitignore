@@ -3,5 +3,7 @@
 .RData
 .Ruserdata
 
+*.dcf
+
 # Para scripts locales etc...:
 tmp*
