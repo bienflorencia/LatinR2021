@@ -3,6 +3,7 @@
 .RData
 .Ruserdata
 
+# Archivos de conexión con shinyapps.io
 *.dcf
 
 # Para scripts locales etc...:
