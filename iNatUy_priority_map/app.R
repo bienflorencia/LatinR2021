@@ -33,7 +33,7 @@ grac <- c("Todos", "Plantae", "Aves", "Insecta", "Arachnida", "Reptilia",
 source('R/funciones.R', local = TRUE, encoding = 'UTF-8')
 
 mapa_base <- leaflet() %>%
-  setView(-51.4, -32.6, zoom = 6) %>% 
+  setView(-55, -32.6, zoom = 7) %>% 
   addProviderTiles(providers$OpenTopoMap,
                    options = providerTileOptions(noWrap = TRUE),
                    group = 'Open Topo Map') %>%
