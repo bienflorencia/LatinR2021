@@ -51,6 +51,7 @@ mapa_base <- leaflet() %>%
 
 # UI ----
 ui <- navbarPage(
+  collapsible = TRUE, # Para pantallas de tablets o celulares
   title = 'iNatUy: cobertura', theme = shinythemes::shinytheme('sandstone'),
   tabPanel("Mapa", 
            div(class = 'outer',
@@ -77,9 +78,8 @@ ui <- navbarPage(
                )
            )
   ,     tabPanel("Índice de Prioridad"
-                 # , "sfdadsfasfsdf"
-                 # , includeHTML('www/indice_prioridad.html')
-                 , includeMarkdown('www/indice_prioridad.Rmd')
+                 , div(class = 'documento',
+                       withMathJax(includeMarkdown('www/indice_prioridad.Rmd')))
                  )
 )
 

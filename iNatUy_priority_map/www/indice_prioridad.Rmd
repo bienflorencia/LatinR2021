@@ -4,14 +4,11 @@ date: "10/24/2021"
 output: 
   html_document: 
     theme: sandstone
+    # Esta opción no se está viendo reflejadas en la app:
+    highlight: zenburn
 editor_options: 
   chunk_output_type: console
 ---
-
-```{r, include=FALSE, message=FALSE, warning=FALSE}
-library(tidyverse)
-```
-
 
 > **NOTA**: esta versión no está terminada. En el momento de escribir me dí cuenta de algunos temas con las intensidades espaciales, temporales, índice de prioridad y los NAs... Eso llevó a muchos cambios en la aplicación, al punto que no he tenido tiempo de actualizar y hacer el fine tunning necesario para este documento.
 
@@ -54,10 +51,11 @@ Supongamos que tenemos estas 4 celdas, todas de área = 10 km2, y con un total d
 En una tabla, así se verían los resultados (parciales):
 
 ```{r, message=FALSE, echo=TRUE}
-tabla_ejemplo <- tibble::tibble(Celda = 1:4,
-                                n = c(3, 0, 1, 2), 
-                                IE_p = c(.3, NA, .1, .2),
-                                IT_p = c(2, NA, 1, 1))
+library(tidyverse)
+tabla_ejemplo <- tibble(Celda = 1:4,
+                        n = c(3, 0, 1, 2), 
+                        IE_p = c(.3, NA, .1, .2),
+                        IT_p = c(2, NA, 1, 1))
 # Código para imprimir la tabla:
 kableExtra::kbl(tabla_ejemplo) %>%
   kableExtra::kable_styling(full_width = FALSE, bootstrap_options = 'striped')
