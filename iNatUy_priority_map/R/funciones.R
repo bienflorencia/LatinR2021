@@ -371,12 +371,13 @@ get_slope <- function(sac, last_perc = .1) {
 #'
 #' @examples
 #' eti <- c("Muy baja", "Baja", "Media", "Alta", "Muy alta", "Sin registros")
-#' idp <- c(0, .76, .89, 1, .98, 1, .99, .88, 1)
 #' registros <- c(23, 3, 2, 0, 1, 1, 1, 2, 0)
-#' p <- percentil_corresp(idp, registros)
+#' area <- 10
+#' ti <- c(9, 1, 2, 0, 1, 1, 1, 2, 0)
+#' idp <- calc_ip(ti, registros / area, registros)
 #' mketiquetas(idp, registros)
-#' mketiquetas(p, registros, 5, labels = eti)
-#' table(mketiquetas(p, registros, 5, labels = eti))
+#' mketiquetas(idp, registros, 5, labels = eti)
+#' table(mketiquetas(idp, registros, 5, labels = eti))
 mketiquetas <- function(x, n.reg, n = 5, labels = NULL) {
   if (!is.null(labels) && length(labels) != n + 1L) {
     warning('\n\tn esperado (length(labels) - 1):\t', length(labels) - 1L,
