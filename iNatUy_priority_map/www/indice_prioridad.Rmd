@@ -59,21 +59,64 @@ kableExtra::kbl(tabla_ejemplo) %>%
 
 (n = número de registros en cada celda)
 
-## Rescalamientos
+## Índice de Prioridad
+
+En nuestra app, el IP se calcula con la función `calc_ip`, definida por el código:
+
+<!-- Cambiar ti y si por it e ie? (de inglés a español; pero lo haría en el código original de la función también para ser consistente) --> 
+
+```{r}
+calc_ip <- function(ti, si, n.reg) {
+  # 1. rescalamientos:
+  ti = scales::rescale(ti, to = 0:1)
+  si = scales::rescale(si, to = 0:1)
+  # 2. suma:
+  suma <- ti + si
+  # 3. ranking
+  r <- rank(suma, ties.method = 'min', na.last = TRUE)
+  # 4. sin registros:
+  # Para dar mayor prioridad a los que tienen 0 registros (innecesario?)
+  r[n.reg == 0] <- 0
+  # 5. rescalamiento final (ranking a percentiles):
+  out <- scales::rescale(r, to = 1:0)
+  return(out)
+}
+```
+
+
+
+# Cómo continuar? Lo que pensé: 
+  
+  I. explicar la función calc_ip, que hace 5 cosas importates:
+    1. rescala IE e IT, para no sobrevalorar ninguna de las dos
+    2. Suma IE e IT (suma).
+    3. Hace el ranking de esa suma, con ties.method = 'min'; el ranking se puede mapear directamente al porcentaje de valores iguales o menores a una suma determinada... o sea percentiles.
+    4. El ranking obtenido (r) tendrá como valor mínimo a 1, naturalmente. En este paso, que tal vez sesa innecesario en realidad, se cambian a 0 los casos en los que hay 1 sólo registro.
+    5. Rescalar el ranking obtenido Lo valioso de usar ranking/percentiles, es que suele 'suavizar' la curva de los valores ordenados 
+    
+  II. contar cómo se hacen las etiquetas 
+  
+  III. Mostrar tabla final a partir del ejemplo
+  
+  IV. Capaz que agregar figura final con las celdas coloreadas según etiquetas
+  
+Algunas cosas ya escritas se pueden reciclar, pero hay otras que están desactualizadas y tienen conceptos obsoletos. En particular, los códigos para imprimir las tablas están bastante buenos.
+
+De acá para abajo habría que revisar todo
+
+- - -
 
 La idea es combinar ambas medidas de intensidad para obtener un **índice de prioridad global**, que nos permita diferenciar celdas según sus relativas falta o presencia de datos.
 
-Para hacer esto hay que tener cuidado de **no inflar artificialmente ninguna de las dos intensidades**. Esa inflación puede ocurrir por el simple hecho de que las intensidades se miden en unidades muy diferentes. En el ejmplo dado, vemos que la intensidad temporal toma valores naturalmente mucho más altos que la intensidad espacial, por el simple hecho de que la segunda refiere una la densidad espacial: cantidad de registros sobre área total de la celda (10 km2 en este caso).
+Para hacer esto hay que tener cuidado de **no inflar artificialmente ninguna de las dos intensidades**. Esa inflación puede ocurrir por el simple hecho de que estas se miden en unidades muy diferentes. En el ejemplo dado, vemos que la intensidad temporal toma valores naturalmente mucho más altos que la intensidad espacial, por el simple hecho de que la segunda refiere una la densidad (cantidad de registros sobre área, 10 km2 en este caso).
 
 Para evitar eso, rescalamos todos los valores al rango [0, 1], usando la función [`rescale`, del paquete `scales`](https://scales.r-lib.org/reference/rescale.html) (más específicamente, nuestro código usa [`scales:::rescale.numeric`](https://github.com/r-lib/scales/blob/9c5a00d66d3536e17f130abf50af9c3a61e1059d/R/bounds.r#L21)).
-
-> Reitermaos aquí que las celdas sin registros se dejan afuera de estos cálculos. Esto es con el fín de que, al final del procesamiento, los valores obtenidos resulten más informativos. En otras palabras, **nos interesa diferenciar celdas con pocos registros de aquellas que no tienen ninguno**.
 
 En concreto, la transformación se puede resumir con la ecuación:
 
 $$ X' = {{ X - X_{min} } \over { X_{max} - X_{min} }} $$
 
-En donde $X'$ es un valor rescalado, $X_{min}$ es el valor mínimoregistrado para el conjunto de todas las celdas (en el ejemplo: 0.1 para IE_p, y 1 para IT_p; recordemos que los valores de la celda 2 quedan afuera de estos cálculos) y $X_{max}$ es el máximo (en el ejemplo: 0.3 para IE_p y 2 para IT_p).
+En donde $X'$ es un valor rescalado, $X_{min}$ es el valor mínimo registrado para el conjunto de todas las celdas (en el ejemplo: 0.1 para IE, y 1 para IT; recordemos que los valores de la celda 2 quedan afuera de estos cálculos) y $X_{max}$ es el máximo (en el ejemplo: 0.3 para IE y 2 para IT).
 
 Escrito en código R, sería algo así:
 
@@ -89,16 +132,16 @@ x_rescalado <- scales::rescale(x, to = 0:1)
 
 Para el ejemplo anterior, los calculos de rescalamiento se pueden expresar como:
 
-$$ IE = {{ IE_p - 0.1 } \over { 0.3 - 0.1 }} $$
-$$ IT = {{ IT_p - 1 } \over { 2 - 1 }} $$
+$$ IE_r = {{ IE - 0.1 } \over { 0.3 - 0.1 }} $$
+$$ IT_r = {{ IT - 1 } \over { 2 - 1 }} $$
 
 Una vez hechos los rescalamientos, la tabla del ejemplo queda así:
 
 ```{r}
 tabla_ejemplo_resc <- 
   tabla_ejemplo %>% 
-  mutate(IE = scales::rescale(IE_p, to = 0:1),
-         IT = scales::rescale(IT_p, to = 0:1))
+  mutate(IEr = scales::rescale(IE, to = 0:1),
+         ITr = scales::rescale(IT, to = 0:1))
 
 # Código para imprimir la tabla:
 kableExtra::kbl(tabla_ejemplo_resc) %>%

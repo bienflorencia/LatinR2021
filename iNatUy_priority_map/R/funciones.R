@@ -42,13 +42,22 @@
 #' @export
 #'
 #' @examples
+#' registros <- c(23, 3, 2, 0, 1, 1, 1, 2, 0)
+#' area <- 10
+#' ti <- c(9, 1, 2, 0, 1, 1, 1, 2, 0)
+#' calc_ip(ti, registros / area, registros)
 calc_ip <- function(ti, si, n.reg) {
+  # 1. rescalamientos:
   ti = scales::rescale(ti, to = 0:1)
   si = scales::rescale(si, to = 0:1)
+  # 2. suma:
   suma <- ti + si
+  # 3. ranking
   r <- rank(suma, ties.method = 'min', na.last = TRUE)
-  # Para dar mayor prioridad a los que tienen 0 registros:
+  # 4. sin registros:
+  # Para dar mayor prioridad a los que tienen 0 registros (innecesario?)
   r[n.reg == 0] <- 0
+  # 5. rescalamiento final (ranking a percentiles):
   out <- scales::rescale(r, to = 1:0)
   return(out)
 }
