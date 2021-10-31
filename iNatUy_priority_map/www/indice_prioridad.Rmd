@@ -12,50 +12,46 @@ editor_options:
 
 > **NOTA**: esta versión no está terminada. En el momento de escribir me dí cuenta de algunos temas con las intensidades espaciales, temporales, índice de prioridad y los NAs... Eso llevó a muchos cambios en la aplicación, al punto que no he tenido tiempo de actualizar y hacer el fine tunning necesario para este documento.
 
-## Intensidad espacial (prenormalización)
+## Intensidad espacial
 
-Cantidad de registros por unidad de área.
+Es la cantidad de registros por unidad de área, o dicho de otra forma, una densidad de registros para la celda.
 
-Es una densidad de registros para la celda.
+$$ IE = n_r / A_c $$
 
-IE_p = # registros / área de la celda
-
-(la p minúscula indica prenormalización)
+En donde $n_r$ y $A_c$ son la cantidad de registros y área para una celda determinada, respectivamente.
 
 ## Intensidad temporal
 
-Mide la cantidad de años y meses diferentes presentes en el conjunto de registros:
-
-IT_p = #año_mes diferentes
-
-(la p minúscula indica prenormalización)
+Es la cantidad de **pares año-mes** diferentes presentes en el conjunto de registros. Por ejemplo, las fechas 2021-08-09 y 2021-08-31, están en el mismo par año-mes, pero las fechas 2021-08-09 y 2021-09-01 no.
 
 El IT es útil porque nos sirve para tener una noción de qué tan sesgados están los datos en cuanto al momento en que fueron tomados. Muchos registros en el mismo día pueden estar sesgados a las especies que en ese momento estaban presentes, o al tipo de registros que las personas decidieron enfocarse, etc. Cuanto más fechas diferentes tengamos en nuestro registro, más probabilidades de que estemos capturando la biodiversidad del lugar.
 
-Decidimos tomar año-mes como unidad de tiempo porque consideramos que es un balance bueno entre complejidad de código y grano de muestreo (en contraste, elegir solamente año puede ser un grano muy grande, debido a que iNaturalist, o la posibilidad de tomar fotos con celulares, venido al caso, existe hace pocos años). No tenemos elementos como para decidir cuál es exactamente el grano más apropiado para el caso de estudio. en caso de existir una mejor alternativa, bien fundamentada, la incorporaremos a los cálculos.
+La variedad de fechas presentes en el registro puede ser particularmente importante para especies con ciclos de vida corto, como suele pasar con insectos, invertebrados, plantas estacionales (generalizando un poco, especies de pequeño porte).
 
-## Ejemplo:
+La decisión de usar los pares año-mes, en lugar de año-mes-día, o año, como unidad de tiempo, se debe a que consideramos que es un buen balance entre complejidad de código y grano de muestreo. En contraste, elegir solamente año puede ser un grano muy grande, debido a que iNaturalist, o la posibilidad de tomar fotos con celulares, venido al caso, existe hace pocos años. A la fecha, no tenemos elementos como para decidir cuál es exactamente el grano más apropiado para el caso de estudio. En caso de existir una mejor alternativa, respaldada por fundamentos, estamos interesades en incorporarla a los cálculos.
 
-Supongamos que tenemos estas 4 celdas, todas de área = 10 km2, y con un total de 6 registros, cuyas fechas se indican con carteles:
+## Un ejemplo ilustrativo
+
+Supongamos que tenemos estas 4 celdas, todas de área = 10 km2, y con un total de 6 registros, cuyas fechas son las indicadas:
 
 ![](intensity.svg)
 
-- En la celda 1, tenemos 3 registros, por lo que la IE_p será 3/área = 0.3 (área = 10 km2). En cambio la IT_p es 2, ya que hay 3 registros pero **sólo hay dos combinaciones año-mes**: 2018-11 y 2021-06
+- En la celda 1, tenemos 3 registros, por lo que la IE será 3/área = 0.3 (área = 10 km2). En cambio la IT es 2, ya que hay 3 registros pero **sólo hay dos combinaciones año-mes**: 2018-11 y 2021-06
 
-- En la celda 2 tenemos 0 registros, así que tanto IE_p como IT_p serán 0. De todas formas, para los cálculos subsiguientes, especialmente los rescalamientos, estos valores serán ignorados. Por esta razón, vamos a asignarle el valor NA ([Not Available](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/NA)) de momento.
+- En la celda 2 tenemos 0 registros, así que tanto IE como IT serán 0.
 
-- En la celda 3 hay un registro, así que: IE_p = 0.1; IT_p = 1
+- En la celda 3 hay un registro, así que: IE = 0.1 e IT = 1
 
-- En la celda 4 hay dos registros del mismo día (y por lo tanto, del mismo año-mes: 2020), por lo que IE_p = 0.2 e IT_p = 1.
+- En la celda 4 hay dos registros del mismo día (y por lo tanto, del mismo año-mes: 2020-05), por lo que IE = 0.2 e IT = 1.
 
-En una tabla, así se verían los resultados (parciales):
+En una tabla, así se verían los resultados hasta ahora:
 
 ```{r, message=FALSE, echo=TRUE}
 library(tidyverse)
 tabla_ejemplo <- tibble(Celda = 1:4,
                         n = c(3, 0, 1, 2), 
-                        IE_p = c(.3, NA, .1, .2),
-                        IT_p = c(2, NA, 1, 1))
+                        IE = c(.3, 0, .1, .2),
+                        IT = c(2, 0, 1, 1))
 # Código para imprimir la tabla:
 kableExtra::kbl(tabla_ejemplo) %>%
   kableExtra::kable_styling(full_width = FALSE, bootstrap_options = 'striped')
