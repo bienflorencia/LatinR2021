@@ -6,7 +6,6 @@ input[type="number"] {
   max-width: 80%;
 }
 
-
 outer {
   position: fixed;
   top: 41px;
@@ -18,13 +17,13 @@ outer {
 }
 
 
-/* Customize fonts */
+/* Customize fonts 
 body, label, input, button, select { 
   font-family: 'Helvetica Neue', Helvetica;
   font-weight: 200;
 }
 h1, h2, h3, h4 { font-weight: 400; }
-
+*/
 
 #controls {
   /* Appearance */
@@ -51,7 +50,27 @@ h1, h2, h3, h4 { font-weight: 400; }
   font-size: 12px;
 }
 
-/* If not using map tiles, show a white background */
+/*
+#map {
+  height: calc(100vh - 200) !important;
+}
+*/
+
+.navbar {
+  margin-bottom: 0;
+}
+
+.container-fluid .navbar-header .navbar-brand {
+  margin-left: 0;
+}
+
+.container-fluid {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* If not using map tiles, show a white background 
 .leaflet-container {
   background-color: white !important;
 }
+*/

@@ -1,5 +1,4 @@
-
-## MENSAJE PARA FLO! ----
+## MENSAJE PARA FLO!
 ##
 ## FLO! Abajo puse funciones con documentación roxygen que estoy acostumbrado.
 ##
@@ -32,6 +31,36 @@
 ##
 ## (( CAPAZ QUE EN MAC LOS CTRL HAY QUE CAMBIARLOS TODOS POR EL BOTÓN ESE QUE
 ## USAN USTEDES ))
+
+#' Índice de Prioridad
+#'
+#' @param ti temporal intensity
+#' @param si spatial intensity
+#' @param n.reg numero de registros
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' registros <- c(23, 3, 2, 0, 1, 1, 1, 2, 0)
+#' area <- 10
+#' ti <- c(9, 1, 2, 0, 1, 1, 1, 2, 0)
+#' calc_ip(ti, registros / area, registros)
+calc_ip <- function(ti, si, n.reg) {
+  # 1. rescalamientos:
+  ti = scales::rescale(ti, to = 0:1)
+  si = scales::rescale(si, to = 0:1)
+  # 2. suma:
+  suma <- ti + si
+  # 3. ranking
+  r <- rank(suma, ties.method = 'min', na.last = TRUE)
+  # 4. sin registros:
+  # Para dar mayor prioridad a los que tienen 0 registros (innecesario?)
+  r[n.reg == 0] <- 0
+  # 5. rescalamiento final (ranking a percentiles):
+  out <- scales::rescale(r, to = 1:0)
+  return(out)
+}
 
 #' Sustituta de leaflet::colorQuantile
 #'
@@ -117,37 +146,37 @@
 #' 1, 14, 13, 0, 25, 2, 4, 5, 5, 11, 2, 2, 0, 17, 6, 2, 3, 5, 7, 1, 4, 3, 2, 19,
 #' 2, 2, 6, 1, 1, 2, 1, 2, 1, 1, 4, 3, 0, 4, 3 )
 #'
-#' pal0 <- leaflet::colorQuantile("RdYlGn", vals, n = 9, 
+#' pal0 <- leaflet::colorQuantile("RdYlGn", vals, n = 9,
 #'                                na.color = "#4d0012", reverse = FALSE)
-#' 
+#'
 #' pal0(vals)
 #'
-#' pal1 <- colorQuantile_hacked("RdYlGn", vals, n = 9, 
+#' pal1 <- colorQuantile_hacked("RdYlGn", vals, n = 9,
 #'                              na.color = "#4d0012", reverse = FALSE)
-#' 
+#'
 #' pal1(vals)
 colorQuantile_hacked <- function (palette, domain, n = 4,
-                                  probs = seq(0, 1, length.out = n + 1), 
-                                  na.color = "#808080", 
-                                  alpha = FALSE, 
-                                  reverse = FALSE, 
+                                  probs = seq(0, 1, length.out = n + 1),
+                                  na.color = "#808080",
+                                  alpha = FALSE,
+                                  reverse = FALSE,
                                   right = FALSE) {
   if (!is.null(domain)) {
     bins <- quantile(domain, probs, na.rm = TRUE, names = FALSE)
     bins <- unique(bins)
     return(leaflet:::withColorAttr(
-      "quantile", 
+      "quantile",
       list(probs = probs, na.color = na.color),
-      leaflet::colorBin(palette, 
-                        domain = NULL, 
-                        bins = bins, 
-                        na.color = na.color, 
+      leaflet::colorBin(palette,
+                        domain = NULL,
+                        bins = bins,
+                        na.color = na.color,
                         alpha = alpha,
                         reverse = reverse)
     ))
   }
-  colorFunc <- leaflet::colorFactor(palette, domain = 1:(length(probs) - 1), 
-                                    na.color = na.color, alpha = alpha, 
+  colorFunc <- leaflet::colorFactor(palette, domain = 1:(length(probs) - 1),
+                                    na.color = na.color, alpha = alpha,
                                     reverse = reverse)
   leaflet:::withColorAttr(
     "quantile",
@@ -168,55 +197,6 @@ colorQuantile_hacked <- function (palette, domain, n = 4,
                 " and will be treated as NA")
       colorFunc(ints)
     })
-}
-
-#' Title
-#'
-#' @param indice_prioridad 
-#' @param n 
-#' @param right 
-#' @param labels 
-#'
-#' @return
-#' @export
-#'
-#' @examples
-#' eti <- c("Muy baja", "Baja", "Media", "Alta", "Muy alta", "Sin registros")
-#' idp <- c(0, .76, .89, NA, .98, 1, .99, .88, NA)
-#' domain2labels(idp)
-#' domain2labels(idp, 5, labels = eti)
-#' table(domain2labels(idp, 5, labels = eti))
-domain2labels <- function(x, n = 5, 
-                       labels = NULL,
-                       right = FALSE) {
-  probs <- seq(0, 1, length.out = n + 1)
-  r <- rank(x[!is.na(x)], ties.method = 'max') 
-    # scales::rescale(to = 1:0)
-  rg <- range(r)
-  
-  # bins <- quantile(x, probs, na.rm = TRUE, names = FALSE)
-  # bins <- unique(bins)
-  corte <- cut(
-    r,
-    diff(rg) * probs + rg[1],
-    labels = FALSE,
-    include.lowest = TRUE,
-    right = right
-  )
-  ints <- as.integer(x)
-  ints[!is.na(x)] <- corte
-  ints[is.na(x)] <- n + 1
-  if (!is.null(labels)) {
-    if (length(labels) != (n + 1))
-      stop('labels debe tener n + 1 elementos (', n + 1, ') pero tiene: ',
-           length(labels))
-    out <- labels[ints]
-    out <- factor(out, levels = labels)
-  } else {
-    out <- factor(ints)
-  }
-  # print(tibble(x, out)) # debug
-  return(out)
 }
 
 #' Curva de acumulación JMB
@@ -260,6 +240,54 @@ curva_acum_jm <- function(taxon_obs) {
     out[i] <- s
   }
   names(out) <- taxon_obs
+  return(out)
+}
+
+#' Filtrar datos por grupo
+#'
+#' Obsoleta
+#'
+#' Filtra la tabla de datos para quedarse sólo con las columnas correspondientes a
+#' un grupo en particular.
+#'
+#' @param datos
+#' @param grupo
+#'
+#' @return
+#' @export
+#'
+#' @examples
+data_filter <- function(datos, grupo = "Todos") {
+  # grupos aceptados:
+  if (!exists(grac))
+    grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
+              "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia",
+              "Actinopterygii", "Chromista", "Protozoa")
+
+  if (!(tolower(grupo) %in% tolower(grac)))
+    stop("grupo debe ser alguno de los aceptados:\n",
+         stringr::str_wrap(paste(grac, collapse = ', '),
+                           80, indent = 2, exdent = 2))
+
+  gr <- NULL
+  gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
+
+  if (!exists('cols_base'))
+    cols_base <- c('grid_id', 'area', 'percentil', 'indice_prioridad',
+                   'spatial_intensity',
+                   'temporal_intensity', 'species_richness',
+                   'n_new_species_last_year', 'prop_new_species_last_year')
+
+  cols_base_a <- cols_base[cols_base != 'area']
+  # out <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
+
+  # print(cols_base) # debug
+  columnas <- c('grid_id', 'area', paste0(cols_base_a[-1], gr), 'x')
+
+  # print(columnas) # debug
+  out <- dplyr::select(datos, tidyselect::all_of(columnas))
+
+  names(out) <- gsub(paste0('_', grupo, '$'), '', names(out))
   return(out)
 }
 
@@ -313,21 +341,114 @@ get_acc <- function(taxon_obs, method = 'exact') {
 #' d %>%
 #'   group_by(grid_ID, iconic_taxon_name) %>%
 #'   summarise(slope = get_acc(species) %>% get_slope)
-#'   
+#'
 #' dacc <- d %>%
-#'   # filter(grid_ID %in% 1:2) %>% 
+#'   # filter(grid_ID %in% 1:2) %>%
 #'   group_by(grid_ID, iconic_taxon_name) %>%
 #'   nest() %>%
-#'   mutate(acc = purrr::map(data, function(x) get_acc(x$species))) %>% 
-#'   select(-data) %>% 
+#'   mutate(acc = purrr::map(data, function(x) get_acc(x$species))) %>%
+#'   select(-data) %>%
 #'   ungroup()
-#' filter(dacc, grid_ID == 3, iconic_taxon_name == 'C')$acc[[1]] %>% 
+#' filter(dacc, grid_ID == 3, iconic_taxon_name == 'C')$acc[[1]] %>%
 #'   plot
 get_slope <- function(sac, last_perc = .1) {
   s <- sac$richness
   N <- length(s)
   K <- ceiling(N * (1 - last_perc))
   out <- (s[N]- s[K]) / (N - K)
+  return(out)
+}
+
+#' Hacer etiquetas de prioridad
+#'
+#' @param x percentiles correspondientes (ej: salida de percentil_corresp)
+#' @param n cantidad de categorías deseadas. En caso de que labels no sea
+#'   `NULL`, debe ser `length(labels) - 1`
+#' @param labels etiquetas a asignar: debe tener n + 1 elementos
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' eti <- c("Muy baja", "Baja", "Media", "Alta", "Muy alta", "Sin registros")
+#' registros <- c(23, 3, 2, 0, 1, 1, 1, 2, 0)
+#' area <- 10
+#' ti <- c(9, 1, 2, 0, 1, 1, 1, 2, 0)
+#' idp <- calc_ip(ti, registros / area, registros)
+#' mketiquetas(idp, registros)
+#' mketiquetas(idp, registros, 5, labels = eti)
+#' table(mketiquetas(idp, registros, 5, labels = eti))
+mketiquetas <- function(x, n.reg, n = 5, labels = NULL) {
+  if (!is.null(labels) && length(labels) != n + 1L) {
+    warning('\n\tn esperado (length(labels) - 1):\t', length(labels) - 1L,
+            '\n\tn encontrado:\t\t\t\t', n,
+            '\n\t-->> Se modifica n de manera acorde (n = ',
+            n <- length(labels) - 1L, ')')
+  }
+  out <- integer(length(x))
+  corte <- cut(x[n.reg > 0], n, labels = FALSE, include.lowest = TRUE)
+  out[n.reg > 0] <- corte
+  out[n.reg == 0] <- n + 1L
+  if (!is.null(labels)) {
+    out <- labels[out]
+    out <- factor(out, levels = labels)
+  } else {
+    out <- factor(out)
+  }
+  # print(tibble(x, out)) # debug
+  return(out)
+}
+
+#' Popup maker
+#'
+#' El objeto popup es un vector character con el código HTML usado al hacer
+#' click en un hexágono.
+#'
+#' @param datos Tabla con los datos. Espera la presencia de varias columnas
+#' @param grupo Grupo taxonómico para el que corresponden los datos
+#'
+#' @return Vector character con código HTML
+#' @export
+#'
+#' @examples
+mkpopup <- function(grid_id, etiqueta, grupo = "Todos") {
+
+  # grupos aceptados:
+  grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
+            "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia",
+            "Actinopterygii", "Chromista", "Protozoa")
+
+  if (!(tolower(grupo) %in% tolower(grac)))
+    stop("grupo debe ser alguno de los aceptados:\n",
+         stringr::str_wrap(paste(grac, collapse = ', '),
+                           80, indent = 2, exdent = 2))
+
+  grupo_html <- paste0('<em style="color:grey">Grupo: ',
+                       stringr::str_to_title(grupo),
+                       ' - ')
+
+  # gr <- NULL
+  # gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
+
+  # cols_base <- c('grid_id', 'percentil', 'indice_prioridad', 'species_richness',
+  #                'n_new_species_last_year', 'prop_new_species_last_year')
+  # d <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
+  # names(d) <- cols_base
+
+  out <- paste0(
+    grupo_html, "ID Celda: ", grid_id, '</em>',
+    "<br><strong>Prioridad: </strong>",
+    etiqueta
+    # replace_na(round(100 * datos$ranking, 1), 0), "%",
+    # "<br><strong>Índice de prioridad: </strong>",
+    # replace_na(round(datos$indice_prioridad, 2), 1),
+    # "<br><strong>Especies registradas: </strong>",
+    # datos$species_richness,
+    # "<br><strong>Especies nuevas, en el último año: </strong>",
+    # datos$n_new_species_last_year,
+    # " (", round(100 * datos$prop_new_species_last_year, 1),
+    # " %)"
+    )
   return(out)
 }
 
@@ -347,104 +468,3 @@ nuevas_spp <- function(nuevas, viejas) {
   out <- length(un) - sum(un %in% uv)
   return(out)
 }
-
-#' Popup maker
-#'
-#' El objeto popup es un vector character con el código HTML usado al hacer
-#' click en un hexágono.
-#'
-#' @param datos Tabla con los datos. Espera la presencia de varias columnas
-#' @param grupo Grupo taxonómico para el que corresponden los datos
-#'
-#' @return Vector character con código HTML
-#' @export
-#'
-#' @examples
-mkpopup <- function(grid_id, etiqueta, grupo = "Todos") {
-  
-  # grupos aceptados:
-  grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
-            "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia", 
-            "Actinopterygii", "Chromista", "Protozoa")
-  
-  if (!(tolower(grupo) %in% tolower(grac))) 
-    stop("grupo debe ser alguno de los aceptados:\n", 
-         stringr::str_wrap(paste(grac, collapse = ', '), 
-                           80, indent = 2, exdent = 2))
-
-  grupo_html <- paste0('<em style="color:grey">Grupo: ', 
-                       stringr::str_to_title(grupo),
-                       ' - ')
-  
-  # gr <- NULL
-  # gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
-
-  # cols_base <- c('grid_id', 'ranking', 'indice_prioridad', 'species_richness',
-  #                'n_new_species_last_year', 'prop_new_species_last_year')
-  # d <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
-  # names(d) <- cols_base
-  
-  out <- paste0(
-    grupo_html, "ID Celda: ", grid_id, '</em>', 
-    "<br><strong>Prioridad: </strong>",
-    etiqueta
-    # replace_na(round(100 * datos$ranking, 1), 0), "%",
-    # "<br><strong>Índice de prioridad: </strong>",
-    # replace_na(round(datos$indice_prioridad, 2), 1),
-    # "<br><strong>Especies registradas: </strong>",
-    # datos$species_richness,
-    # "<br><strong>Especies nuevas, en el último año: </strong>",
-    # datos$n_new_species_last_year,
-    # " (", round(100 * datos$prop_new_species_last_year, 1),
-    # " %)"
-    )
-  return(out)
-}
-
-
-#' Filtrar datos por grupo
-#' 
-#' Filtra la tabla de datos para quedarse sólo con las columnas correspondientes a 
-#' un grupo en particular.
-#'
-#' @param datos 
-#' @param grupo 
-#'
-#' @return
-#' @export
-#'
-#' @examples
-data_filter <- function(datos, grupo = "Todos") {
-  # grupos aceptados:
-  if (!exists(grac))
-    grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae", 
-              "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia",
-              "Actinopterygii", "Chromista", "Protozoa")
-  
-  if (!(tolower(grupo) %in% tolower(grac))) 
-    stop("grupo debe ser alguno de los aceptados:\n", 
-         stringr::str_wrap(paste(grac, collapse = ', '), 
-                           80, indent = 2, exdent = 2))
-  
-  gr <- NULL
-  gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
-
-  if (!exists('cols_base'))
-    cols_base <- c('grid_id', 'area', 'ranking', 'indice_prioridad', 
-                   'spatial_intensity',
-                   'temporal_intensity', 'species_richness', 
-                   'n_new_species_last_year', 'prop_new_species_last_year')
-  
-  cols_base_a <- cols_base[cols_base != 'area']
-  # out <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
-  
-  # print(cols_base) # debug
-  columnas <- c('grid_id', 'area', paste0(cols_base_a[-1], gr), 'x')
-  
-  # print(columnas) # debug
-  out <- dplyr::select(datos, tidyselect::all_of(columnas))
-  
-  names(out) <- gsub(paste0('_', grupo, '$'), '', names(out))
-  return(out)
-}
-  

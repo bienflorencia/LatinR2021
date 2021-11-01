@@ -4,5 +4,8 @@
 .Ruserdata
 .DS_Store
 
+# Archivos de conexión con shinyapps.io
+*.dcf
+
 # Para scripts locales etc...:
 tmp*
