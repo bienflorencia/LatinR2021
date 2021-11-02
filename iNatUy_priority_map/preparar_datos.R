@@ -11,17 +11,19 @@ source('R/funciones.R', local = TRUE, encoding = 'UTF-8')
 # Uruguay <- geouy::load_geouy(c = "Dptos")
 # saveRDS(Uruguay, 'data/Uruguay_map.rds')
 Uruguay <- readRDS('data/Uruguay_map.rds')
-# iNatUY  <- readr::read_csv('../data/observations-175157.csv', guess_max = 25000)
+# iNatUY  <- readr::read_csv('data/observations-193326.csv', guess_max = 29000)
 # saveRDS(iNatUY, 'data/iNatUY.rds')
 iNatUY <- readRDS('data/iNatUY.rds')
 
-# grid_Uruguay <- 
-#   sf::st_make_grid(x = Uruguay, cellsize = 25000, square = FALSE)  %>% 
-#   st_intersection(., sf::st_union(Uruguay)) %>% 
-#   sf::st_as_sf() %>% 
-#   dplyr::mutate(grid_id = 1:nrow(.), 
-#                 area = sf::st_area(x))
-# saveRDS(grid_Uruguay, 'data/grid_Uruguay.rds')
+grid_Uruguay <- 
+  sf::st_make_grid(x = Uruguay, cellsize = 24028.11413, square = F)  %>% 
+  sf::st_intersection(., sf::st_union(Uruguay)) %>% 
+  sf::st_as_sf() %>% 
+  dplyr::mutate(grid_id = 1:nrow(.),
+                area = sf::st_area(x)) %>% 
+  filter(area!=units::set_units(0,"m^2"))
+
+# saveRDS(grid_Uruguay, 'grid_Uruguay.rds')
 grid_Uruguay <- readRDS('data/grid_Uruguay.rds')
 
 last_date <- max(iNatUY$observed_on, na.rm = TRUE)
@@ -31,8 +33,9 @@ iNatUY_GIS <- iNatUY %>%
                                     lubridate::month(observed_on)),
                 last_year = observed_on + 365 >= last_date) %>% 
   dplyr::filter(captive_cultivated == FALSE,
-                coordinates_obscured == FALSE) %>% 
-  dplyr::filter(!is.na(taxon_species_name) & !is.na(iconic_taxon_name)) %>% 
+                coordinates_obscured == FALSE,
+                quality_grade=='research',
+                !is.na(taxon_species_name) & !is.na(iconic_taxon_name)) %>% 
   dplyr::select(observed_on, year_month, last_year,
                 taxon_id,
                 scientific_name, 
@@ -128,7 +131,7 @@ grid_iNatUY_ip <-
 
 # Prueba ----
 # 
-# Todos deben dar n = nrow(grid_Uruguay) (= 377)
+# Todos deben dar n = nrow(grid_Uruguay) (= 377) / edit 402
 grid_iNatUY_ip %>% 
   group_by(iconic_taxon_name) %>% 
   summarise(n = n_distinct(grid_id))
@@ -194,6 +197,7 @@ mapa
 input <- list(grupo = 'Todos')
 d <- data_filter(datos, input$grupo) %>% 
   mutate(etiqueta = mketiquetas(indice_prioridad, labels = mis_etiquetas))
+
 pal <- colorFactor('RdYlBu', d$etiqueta, reverse = TRUE)
 
 m1 <- leaflet() %>%

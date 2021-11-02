@@ -1,0 +1,35 @@
+---
+title: "Contacto"
+date: "11/02/2021"
+output: 
+  html_document: 
+    keep_md: yes
+    theme: sandstone
+    # Esta opción no se está viendo reflejadas en la app:
+    highlight: zenburn
+editor_options: 
+  chunk_output_type: console
+---
+
+# ¡Escribinos!
+
+Esta herramienta podría replicarse en otras partes del mundo, además, nuevas métricas podrían ser propuestas y nuevas formas de visualizar los datos acordes a las regiones (e.g. resaltando rutas, áreas administrativas o zonas de interés). Esta es la primera vez que hacemos pública la herramienta por lo que esperamos poder recibir devoluciones para seguirla mejorando a futuro.   
+
+<br>
+
+**Florencia Grattarola** ([@flograttarola](https://twitter.com/flograttarola))  
+**Juan Manuel Barreneche** ([@jumanbar](https://twitter.com/eldromedario)) 
+
+<br>
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE,out.width="50%"}
+knitr::include_graphics(c("marca-julana-horizontal.svg",
+                          "biodiversidata.png"))
+```
+
+<br>
+
+```{r, echo=FALSE, fig.align='left', out.width = "100%"}
+knitr::include_graphics("NaturalistaUY-Identity.png")
+```
+

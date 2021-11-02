@@ -259,7 +259,7 @@ curva_acum_jm <- function(taxon_obs) {
 #' @examples
 data_filter <- function(datos, grupo = "Todos") {
   # grupos aceptados:
-  if (!exists(grac))
+  if (!exists("grac"))
     grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
               "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia",
               "Actinopterygii", "Chromista", "Protozoa")

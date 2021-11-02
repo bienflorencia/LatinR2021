@@ -52,7 +52,7 @@ mapa_base <- leaflet() %>%
 # UI ----
 ui <- navbarPage(
   collapsible = TRUE, # Para pantallas de tablets o celulares
-  title = 'iNatUy: cobertura', theme = shinythemes::shinytheme('sandstone'),
+  title = 'NaturalistaUY: ¿dónde hay más oportunidades de llenar vacíos de información?', theme = shinythemes::shinytheme('sandstone'),
   tabPanel("Mapa", 
            div(class = 'outer',
                tags$head(includeCSS('styles.css')),
@@ -77,10 +77,16 @@ ui <- navbarPage(
                  )
                )
            )
-  ,     tabPanel("Índice de Prioridad"
-                 , div(class = 'documento',
-                       withMathJax(includeMarkdown('www/indice_prioridad.Rmd')))
+  ,     tabPanel("Documentación",
+                 div(class = 'documento', 
+                       column(12, 
+                              withMathJax(includeMarkdown('www/documentacion.md'))))
                  )
+  ,     tabPanel("Contacto",
+                 div(class = 'documento', 
+                     column(12, 
+                            withMathJax(includeMarkdown('www/contacto.md'))))
+  )
 )
 
 # SERVER ----
@@ -125,7 +131,7 @@ server <- function(input, output) {
     
     subtitulo <- ifelse(dc$etiqueta == mis_etiquetas[length(mis_etiquetas)],
                         paste0(dc$etiqueta, '!'), 
-                        paste0('Prioridad:', dc$etiqueta))
+                        paste0('Prioridad: ', dc$etiqueta))
     out <- paste(
       sep = '</br>',
       titulo,
