@@ -15,13 +15,13 @@ Uruguay <- readRDS('data/Uruguay_map.rds')
 # saveRDS(iNatUY, 'data/iNatUY.rds')
 iNatUY <- readRDS('data/iNatUY.rds')
 
-grid_Uruguay <- 
-  sf::st_make_grid(x = Uruguay, cellsize = 24028.11413, square = F)  %>% 
-  sf::st_intersection(., sf::st_union(Uruguay)) %>% 
-  sf::st_as_sf() %>% 
-  dplyr::mutate(grid_id = 1:nrow(.),
-                area = sf::st_area(x)) %>% 
-  filter(area!=units::set_units(0,"m^2"))
+# grid_Uruguay <- 
+#   sf::st_make_grid(x = Uruguay, cellsize = 24028.11413, square = F)  %>% 
+#   sf::st_intersection(., sf::st_union(Uruguay)) %>% 
+#   sf::st_as_sf() %>% 
+#   dplyr::mutate(grid_id = 1:nrow(.),
+#                 area = sf::st_area(x)) %>% 
+#   filter(area != units::set_units(0,"m^2"))
 
 # saveRDS(grid_Uruguay, 'grid_Uruguay.rds')
 grid_Uruguay <- readRDS('data/grid_Uruguay.rds')
@@ -124,14 +124,14 @@ grid_iNatUY_ip <-
   dplyr::mutate(
     indice_prioridad = 
       calc_ip(temporal_intensity, spatial_intensity, n_registros),
-    etiqueta = mketiquetas(indice_prioridad, n_registros, 
+      etiqueta = mketiquetas(indice_prioridad, n_registros, 
                            labels = mis_etiquetas)
     ) %>% 
   dplyr::ungroup()
 
 # Prueba ----
 # 
-# Todos deben dar n = nrow(grid_Uruguay) (= 377) / edit 402
+# Todos deben dar n = nrow(grid_Uruguay) (= 402)
 grid_iNatUY_ip %>% 
   group_by(iconic_taxon_name) %>% 
   summarise(n = n_distinct(grid_id))

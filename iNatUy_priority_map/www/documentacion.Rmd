@@ -87,7 +87,7 @@ La idea es combinar ambas medidas de intensidad para obtener un **índice de pri
 En nuestra app, el IP se calcula con la función `calc_ip`, definida por el código:
 
 ```{r}
-calc_ip <- function(it, ie, n.reg) {
+calc_ip <- function(it, ie) {
   # 1. rescalamientos:
   it = scales::rescale(it, to = 0:1)
   ie = scales::rescale(ie, to = 0:1)
@@ -95,10 +95,7 @@ calc_ip <- function(it, ie, n.reg) {
   suma <- it + ie
   # 3. ranking
   r <- rank(suma, ties.method = 'min', na.last = TRUE)
-  # 4. sin registros:
-  # Para dar mayor prioridad a los que tienen 0 registros (innecesario?)
-  r[n.reg == 0] <- 0
-  # 5. rescalamiento final (ranking a percentiles):
+  # 4. rescalamiento final (ranking a percentiles):
   out <- scales::rescale(r, to = 1:0)
   return(out)
 }
@@ -147,14 +144,12 @@ Esta tabla ya está casi lista para ser usada en un mapa, a excepción de un det
 
 - "**Baja**": cuando el índice de prioridad es menor o igual a 0.2
 - "**Media**": cuando el índice de prioridad es mayor o igual a 0.2 y menor a 0.8
-- "**Alta**": cuando el índice de prioridad es menor a 0.8
+- "**Alta**": cuando el índice de prioridad es mayor a 0.8
 - "**Sin registros**": cuando no hay registros para la celda
 
 <br>
 
-A esto le agregamos dos cambios más:
-
-- Las intensidades espacial y temporal de la celda 2, que hasta ahora figuraban como `NA`, pasan a ser 0. Esto sirve para mantener una coerencia con la cantidad de registros y facilitar operaciones matemáticas con estos valores, si es que fuera de interés. Debe notarse, sin embargo, que para los casos específicos de IE e IT, **no da lo mismo tener 0 o `NA` previo a los rescalamientos**.
+La tabla final, entonces, queda así:
 
 ```{r}
 tabla_ejemplo_resc_ip %>%
