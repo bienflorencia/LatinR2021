@@ -19,7 +19,7 @@ class: chapter-slide
 
 ---
 
-## Datos de biodiversidad abiertos en un contexto de crisis de la biodiversidad
+## Datos abiertos en un contexto de crisis de la biodiversidad
 
 La biodiversidad a nivel global está disminuyendo a un ritmo sin precedentes.  
 
@@ -69,7 +69,7 @@ knitr::include_graphics("figs/paper_biodiversidata.png")
 
 ---
 
-## Datos de biodiversidad abiertos en un contexto de crisis de la biodiversidad
+## Datos abiertos en un contexto de crisis de la biodiversidad
 
 Para poder tomar mejores decisiones basadas en evidencia es sumamente crítico revertir la falta de datos primarios sobre la distribución geográfica de las especies.  
 --
@@ -112,7 +112,7 @@ Esta plataforma web y aplicación para celulares, tiene como principal funcional
 
 ## Sesgos observacionales 
 
-Los datos que provienen de la ciencia comunitaria suelen orginarse en áreas de fácil acceso y próximas a centros poblados, carreteras y áreas de interés (como por ejemplo, áreas protegidas).
+Los datos que provienen de la ciencia comunitaria suelen orginarse en áreas de fácil acceso y próximas a centros poblados, carreteras y áreas de interés (como, por ejemplo, áreas protegidas).
 
 --
 
@@ -186,18 +186,18 @@ iNatUY %>%
 
 ```{r, warning=FALSE, message=FALSE, out.height="60%", out.width="60%"}
 iNatUY_filtro <- iNatUY %>% 
-  filter(captive_cultivated == FALSE,
+  dplyr::filter(captive_cultivated == FALSE,
          coordinates_obscured == FALSE,
          quality_grade=='research',
          !is.na(taxon_species_name) & !is.na(iconic_taxon_name))
 ```
 
 --
-Filtramos aquellos registros:
+Eliminamos aquellos registros:
   * de organismos **cautivos** o **cultivados**
 
 --
-  * con **coordenadas obscurecidas**
+  * con **coordenadas oscurecidas**
 
 ---
 
@@ -205,7 +205,7 @@ Filtramos aquellos registros:
 
 ```{r, warning=FALSE, message=FALSE, out.height="60%", out.width="60%"}
 iNatUY_filtro <- iNatUY %>% 
-  filter(captive_cultivated == FALSE,
+  dplyr::filter(captive_cultivated == FALSE,
          coordinates_obscured == FALSE,
          quality_grade=='research',
          !is.na(taxon_species_name) & !is.na(iconic_taxon_name))
@@ -250,10 +250,8 @@ Y luego dividimos el país en celdas hexagonales de 500 $km^2$ usando los paquet
 ```r
 grid_Uruguay <- 
   sf::st_make_grid(x = Uruguay, cellsize = 24028.11413, square = F)  %>% 
-  sf::st_intersection(., sf::st_union(Uruguay)) %>% 
-  sf::st_as_sf() %>% 
-  dplyr::mutate(grid_id = 1:nrow(.),
-                area = sf::st_area(x))
+  sf::st_intersection(., sf::st_union(Uruguay)) %>% sf::st_as_sf() %>% 
+  dplyr::mutate(grid_id = 1:nrow(.), area = sf::st_area(x))
 ```
 ---
 
@@ -293,9 +291,6 @@ La cantidad de registros por unidad de área.
 $$ IE = n_r / A_c $$
 En donde $n_r$ y $A_c$ son la cantidad de registros y área para una celda determinada, respectivamente.
 
---
-
-Por ejemplo, si en una celda se registran 5 organismos y el área de la celda es de 10 $km^2$, la IE es de 0.5.
 
 ---
 
@@ -305,7 +300,7 @@ La cantidad de registros con **pares año-mes** diferentes.
 
 $$ IT = n_{año.mes} $$
 
-En donde $n_{año.mes}$ es la cantidad de registros con **pares año-mes** diferentes para una celda determinada.
+En donde $n_{año.mes}$ es el número de registros con **pares año-mes** diferentes para una celda determinada.
 
 --
 
@@ -370,15 +365,18 @@ La idea es combinar ambas medidas de intensidad para obtener un **índice de pri
 
 ## Índice de Prioridad
 
-En nuestra app, el IP se calcula con la función `calc_ip`, definida por el código:
+En nuestra app, el IP se calcula con la función `calc_ip`:
 
 ```{r}
 calc_ip <- function(it, ie, n.reg) {
+  # 1. rescalamientos:
   it = scales::rescale(it, to = 0:1)
   ie = scales::rescale(ie, to = 0:1)
+  # 2. suma:
   suma <- it + ie
+  # 3. ranking
   r <- rank(suma, ties.method = 'min', na.last = TRUE)
-  r[n.reg == 0] <- 0
+  # 4. rescalamiento final (ranking a percentiles):
   out <- scales::rescale(r, to = 1:0)
   return(out)
 }
@@ -420,16 +418,15 @@ class: chapter-slide
 
 Esta herramienta podría replicarse en otras partes del mundo, además, nuevas métricas podrían ser propuestas y nuevas formas de visualizar los datos acordes a las regiones (e.g. resaltando rutas, áreas administrativas o zonas de interés).   
 
+--
+
 Esta es la primera vez que hacemos pública la herramienta por lo que esperamos poder recibir devoluciones para seguirla mejorando a futuro. 
 
 ---
+
 class: middle, center
 
 # ¡GRACIAS!
-
----
-
-class: middle, center
 
 **Florencia Grattarola** ([@flograttarola](https://twitter.com/flograttarola))  
 **Juan Manuel Barreneche** ([@jumanbar](https://twitter.com/eldromedario))
@@ -441,6 +438,15 @@ knitr::include_graphics(c("figs/marca-julana-horizontal.svg","figs/CZU_logotype_
 ```{r,echo=FALSE,warning=FALSE,message=FALSE,fig.show="hold",out.width="80%",fig.alt="Logo de NaturalistaUY"}
 knitr::include_graphics("figs/NaturalistaUY-Identity.png")
 ```
+
+---
+
+class: middle, center
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE,fig.show="hold",out.width="80%",fig.alt="Foto de Florencia Grattarola a la izquierda y Juan Manuel Barreneche a la derecha, autores de este trabajo"}
+knitr::include_graphics("figs/flo_y_juan.png")
+```
+
 ---
 
 class: chapter-slide
@@ -463,3 +469,8 @@ class: chapter-slide
 - Joe Cheng, Bhaskar Karambelkar and Yihui Xie (2021). leaflet: Create Interactive Web Maps with the JavaScript 'Leaflet' Library. R package version 2.0.4.1. https://CRAN.R-project.org/package=leaflet  
 - Detomasi R. (2020) geouy: Geographic Information of Uruguay. R package version 0.2.2. https://github.com/RichDeto/geouy  
 
+---
+
+class: middle, center
+
+# ¡Les invitamos a sumarse a iNaturalist para contribuir a mejorar el conocimiento sobre la biodiversidad en nuestra región!

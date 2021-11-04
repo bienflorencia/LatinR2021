@@ -24,12 +24,8 @@ Esta herramienta podría replicarse en otras partes del mundo, además, nuevas m
 
 ```{r,echo=FALSE,warning=FALSE,message=FALSE,out.width="50%"}
 knitr::include_graphics(c("marca-julana-horizontal.svg",
-                          "biodiversidata.png"))
+                          "biodiversidata.png",
+                          "NaturalistaUY-Identity.png"))
 ```
 
 <br>
-
-```{r, echo=FALSE, fig.align='left', out.width = "100%"}
-knitr::include_graphics("NaturalistaUY-Identity.png")
-```
-
