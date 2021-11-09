@@ -1,6 +1,6 @@
 # Soy naturalista y quiero pasear en mi país, ¿dónde hay más oportunidades de llenar vacíos de información?
 
-> Presentación para la conferencia LatinR2021
+> Presentación para la conferencia [LatinR2021](https://twitter.com/LatinR_Conf)
 
 **Florencia Grattarola**^1,2^, **Juan Manuel Barreneche**^2^ 
 
