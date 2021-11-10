@@ -6,7 +6,7 @@
 
 > Una lista parcial con posibles incorporaciones a la app y/o datos
 
-- Celdas con nombres? Ir asignando, a dedo, nombres a celdas... no importa cubrir todas. Por ejemplo: quebrada de los cuervos. Eventualmente, la app podría tener una función para seleccionar esas celdas o algo así.
+- Celdas con nombres? Ir asignando, a dedo, nombres a celdas... no importa cubrir todas. Por ejemplo: quebrada de los cuervos. Estos nombres podrían aparecer, en caso de que la celda efectivamente tenga nombre, en el popup del mapa y/o en el panel de información. Eventualmente, la app podría tener también una función para seleccionar  celdas por nombre, o algo así.
 
 - En la misma que la anterior, se podría pensar en departamentos, seccionales policiales, etc (cuencas?), como para elegir las celdas correspondientes
 
