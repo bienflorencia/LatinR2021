@@ -14,13 +14,13 @@ Uruguay <- readRDS('data/Uruguay_map.rds')
 # iNatUY  <- readr::read_csv('data/observations-193326.csv', guess_max = 29000)
 # saveRDS(iNatUY, 'data/iNatUY.rds')
 iNatUY <- readRDS('data/iNatUY.rds')
-
-# grid_Uruguay <- 
-#   sf::st_make_grid(x = Uruguay, cellsize = 24028.11413, square = F)  %>% 
-#   sf::st_intersection(., sf::st_union(Uruguay)) %>% 
-#   sf::st_as_sf() %>% 
+ 
+# grid_Uruguay <-
+#   sf::st_make_grid(x = Uruguay, cellsize = 24028.11413, square = F)  %>%
+#   sf::st_intersection(., sf::st_union(Uruguay)) %>%
+#   sf::st_as_sf() %>%
 #   dplyr::mutate(grid_id = 1:nrow(.),
-#                 area = sf::st_area(x)) %>% 
+#                 area = sf::st_area(x)) %>%
 #   filter(area != units::set_units(0,"m^2"))
 
 # saveRDS(grid_Uruguay, 'grid_Uruguay.rds')
@@ -72,7 +72,7 @@ grid_join <- sf::st_join(
 
 # mis_etiquetas <- c("Muy baja", "Baja", "Media", "Alta", "Muy alta", "Sin registros")
 # writeLines(mis_etiquetas, 'data/mis_etiquetas.txt')
-mis_etiquetas <- readLines('data/mis_etiquetas.txt')
+mis_etiquetas <- readLines('iNatUy_priority_map/data/mis_etiquetas.txt')
 
 # grid_join %>%
 #   dplyr::filter(!is.na(iconic_taxon_name)) %>% 
@@ -123,7 +123,7 @@ grid_iNatUY_ip <-
   # Reescalamientos:
   dplyr::mutate(
     indice_prioridad = 
-      calc_ip(temporal_intensity, spatial_intensity, n_registros),
+      calc_ip(temporal_intensity, spatial_intensity),
       etiqueta = mketiquetas(indice_prioridad, n_registros, 
                            labels = mis_etiquetas)
     ) %>% 
@@ -141,7 +141,7 @@ datos <- grid_Uruguay %>%
   dplyr::left_join(grid_iNatUY_ip, by = 'grid_id') %>% 
   sf::st_transform(crs = 4326)
 
-# saveRDS(datos, "data/datos.rds")
+saveRDS(datos, "iNatUy_priority_map/data/datos.rds")
 
 # datos_split <- split(datos, datos$iconic_taxon_name)
 # saveRDS(datos_split, "data/datos_split.rds")
