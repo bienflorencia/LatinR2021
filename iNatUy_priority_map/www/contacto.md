@@ -22,6 +22,6 @@ Esta herramienta podría replicarse en otras partes del mundo, además, nuevas m
 
 <br>
 
-<img src="marca-julana-horizontal.svg" width="50%" /><img src="biodiversidata.png" width="50%" /><img src="NaturalistaUY-Identity.png" width="50%" />
+<img src="marca_julana_horizontal.png" width="50%" /><img src="biodiversidata.png" width="50%" /><img src="naturalistauy.png" width="50%" />
 
 <br>

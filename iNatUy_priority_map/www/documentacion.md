@@ -11,6 +11,11 @@ editor_options:
   chunk_output_type: console
 ---
 
+
+
+Última actualización: 2022-03-05
+
+
 # Objetivos
 
 La biodiversidad a nivel global está disminuyendo a un ritmo sin precedentes. Para poder evaluar estos cambios hay cada vez más datos disponibles abiertamente en todo el mundo, sin embargo, en diversas regiones de Latinoamérica y el Caribe los datos de biodiversidad disponibles de manera abierta son limitados. Tal es el caso de Uruguay, en donde el [95% de su territorio permanece con muestreos insuficientes](https://doi.org/10.1038/s41598-020-79074-8). Para poder tomar mejores decisiones basadas en evidencia es sumamente crítico revertir la falta de datos primarios sobre la distribución geográfica de las especies. Para esto, la ciencia ciudadana se presenta como una herramienta comunitaria transformadora.   

@@ -7,7 +7,7 @@ library(shiny)
 # https://rstudio.github.io/leaflet/shiny.html
 
 # Demo:
-# https://jumanbar.shinyapps.io/iNatUy_priority_map/
+# https://bienflorencia.shinyapps.io/iNatUy_priority_map/
 
 mis_etiquetas <- readLines('data/mis_etiquetas.txt')
 datos <- readRDS('data/datos.rds')
@@ -130,16 +130,17 @@ server <- function(input, output) {
                      '</strong>')
     
     subtitulo <- ifelse(dc$etiqueta == mis_etiquetas[length(mis_etiquetas)],
-                        paste0(dc$etiqueta, '!'), 
+                        paste0('¡', dc$etiqueta, '!'), 
                         paste0('Prioridad: ', dc$etiqueta))
     out <- paste(
       sep = '</br>',
       titulo,
       paste0('(percentil ', scales::percent(dc$indice_prioridad), ')'),
+      '</br>',
       paste0(tags$strong(subtitulo)),
       '</br>',
       paste0('ID de la Celda: ', input$map_shape_click$id),
-      paste0('Área: ', round(dc$area), ' Km2'),
+      paste0('Área: ', round(dc$area), ' Km<sup>2</sup> '),
       paste0('Cantidad de registros: ', dc$n_registros),
       paste0('Intensidad espacial: ', round(dc$spatial_intensity, 3)),
       paste0('Intensidad temporal: ', round(dc$temporal_intensity, 3)),

@@ -417,7 +417,7 @@ mkpopup <- function(grid_id, etiqueta, grupo = "Todos") {
 
   if (!(tolower(grupo) %in% tolower(grac)))
     stop("grupo debe ser alguno de los aceptados:\n",
-         stringr::str_wrap(paste(grac, collapse = ', '),
+         stringr::str_wrap(paste('grac', collapse = ', '),
                            80, indent = 2, exdent = 2))
 
   grupo_html <- paste0('<em style="color:grey">Grupo: ',
