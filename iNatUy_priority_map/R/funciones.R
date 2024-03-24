@@ -48,12 +48,12 @@
 #' calc_ip(ti, registros / area, registros)
 calc_ip <- function(ti, si) {
   # 1. rescalamientos:
-  ti = scales::rescale(ti, to = 0:1)
-  si = scales::rescale(si, to = 0:1)
+  ti <- scales::rescale(ti, to = 0:1)
+  si <- scales::rescale(si, to = 0:1)
   # 2. suma:
   suma <- ti + si
   # 3. ranking
-  r <- rank(suma, ties.method = 'min', na.last = FALSE)
+  r <- rank(suma, ties.method = "min", na.last = FALSE)
   # 4. rescalamiento final (ranking a percentiles):
   out <- scales::rescale(r, to = 1:0)
   return(out)
@@ -263,28 +263,28 @@ data_filter <- function(datos, grupo = "Todos") {
 
   if (!(tolower(grupo) %in% tolower(grac)))
     stop("grupo debe ser alguno de los aceptados:\n",
-         stringr::str_wrap(paste(grac, collapse = ', '),
+         stringr::str_wrap(paste(grac, collapse = ", "),
                            80, indent = 2, exdent = 2))
 
   gr <- NULL
-  gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
+  gr <- if (tolower(grupo) != "todos") paste0("_", stringr::str_to_title(grupo))
 
-  if (!exists('cols_base'))
-    cols_base <- c('grid_id', 'area', 'percentil', 'indice_prioridad',
-                   'spatial_intensity',
-                   'temporal_intensity', 'species_richness',
-                   'n_new_species_last_year', 'prop_new_species_last_year')
+  if (!exists("cols_base"))
+    cols_base <- c("grid_id", "area", "percentil", "indice_prioridad",
+                   "spatial_intensity",
+                   "temporal_intensity", "species_richness",
+                   "n_new_species_last_year", "prop_new_species_last_year")
 
-  cols_base_a <- cols_base[cols_base != 'area']
-  # out <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
+  cols_base_a <- cols_base[cols_base != "area"]
+  # out <- sf::st_drop_geometry(datos)[c("grid_id", paste0(cols_base[-1], gr))]
 
   # print(cols_base) # debug
-  columnas <- c('grid_id', 'area', paste0(cols_base_a[-1], gr), 'x')
+  columnas <- c("grid_id", "area", paste0(cols_base_a[-1], gr), "x")
 
   # print(columnas) # debug
   out <- dplyr::select(datos, tidyselect::all_of(columnas))
 
-  names(out) <- gsub(paste0('_', grupo, '$'), '', names(out))
+  names(out) <- gsub(paste0("_", grupo, "$"), "", names(out))
   return(out)
 }
 
@@ -311,7 +311,7 @@ data_filter <- function(datos, grupo = "Todos") {
 #' N <- length(sac$richness)
 #' emax <- sac$richness[N]
 #' abline(emax - s * N, s, col = 'red', lwd = 2)
-get_acc <- function(taxon_obs, method = 'exact') {
+get_acc <- function(taxon_obs, method = "exact") {
   N <- length(taxon_obs)
   K <- ceiling(N * .9)
   spmat <- tibble::tibble(plots = 1:N, taxon_obs = taxon_obs, n = 1L) %>%
@@ -377,10 +377,10 @@ get_slope <- function(sac, last_perc = .1) {
 #' table(mketiquetas(idp, registros, 5, labels = eti))
 mketiquetas <- function(x, n.reg, n = 5, labels = NULL) {
   if (!is.null(labels) && length(labels) != n + 1L) {
-    warning('\n\tn esperado (length(labels) - 1):\t', length(labels) - 1L,
-            '\n\tn encontrado:\t\t\t\t', n,
-            '\n\t-->> Se modifica n de manera acorde (n = ',
-            n <- length(labels) - 1L, ')')
+    warning("\n\tn esperado (length(labels) - 1):\t", length(labels) - 1L,
+            "\n\tn encontrado:\t\t\t\t", n,
+            "\n\t-->> Se modifica n de manera acorde (n = ",
+            n <- length(labels) - 1L, ")")
   }
   out <- integer(length(x))
   corte <- cut(x[n.reg > 0], n, labels = FALSE, include.lowest = TRUE)
@@ -420,20 +420,12 @@ mkpopup <- function(grid_id, etiqueta, grupo = "Todos") {
          stringr::str_wrap(paste('grac', collapse = ', '),
                            80, indent = 2, exdent = 2))
 
-  grupo_html <- paste0('<em style="color:grey">Grupo: ',
+  grupo_html <- paste0("<em style='color:grey'>Grupo: ",
                        stringr::str_to_title(grupo),
-                       ' - ')
-
-  # gr <- NULL
-  # gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
-
-  # cols_base <- c('grid_id', 'percentil', 'indice_prioridad', 'species_richness',
-  #                'n_new_species_last_year', 'prop_new_species_last_year')
-  # d <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
-  # names(d) <- cols_base
+                       " - ")
 
   out <- paste0(
-    grupo_html, "ID Celda: ", grid_id, '</em>',
+    grupo_html, "ID Celda: ", grid_id, "</em>",
     "<br><strong>Prioridad: </strong>",
     etiqueta
     # replace_na(round(100 * datos$ranking, 1), 0), "%",
@@ -458,7 +450,7 @@ mkpopup <- function(grid_id, etiqueta, grupo = "Todos") {
 #' @export
 #'
 #' @examples
-#' nuevas_spp(c('a', 'c', 'f'), c('a', 'a', 'c', 'b', 'c'))
+#' nuevas_spp(c("a", "c", "f"), c("a", "a", "c", "b", "c"))
 nuevas_spp <- function(nuevas, viejas) {
   un <- unique(nuevas)
   uv <- unique(viejas)
