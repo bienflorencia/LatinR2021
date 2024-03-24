@@ -19,7 +19,7 @@ grid_Uruguay <- sf::st_make_grid(x = Uruguay, cellsize = 25000, square = FALSE) 
 iNatUY_GBIF <- read_tsv("data/0317842-200613084148143/occurrence.txt", guess_max = 11000)
 
 iNatUY_GBIF_GIS <- iNatUY_GBIF %>%
-  mutate(year = ubridate::year(eventDate)) %>%
+  mutate(year = lubridate::year(eventDate)) %>%
   select(species, scientificName, kingdom, class, order, family,  genus, specificEpithet, infraspecificEpithet,
                        eventDate, year, recordedBy, identifiedBy, iucnRedListCategory, taxonRank,
                        countryCode, decimalLatitude, decimalLongitude, coordinateUncertaintyInMeters, coordinatePrecision) %>%
@@ -32,20 +32,25 @@ iNatUY_GBIF_GIS <- iNatUY_GBIF %>%
 iNatUY <- read_csv("data/observations-175157.csv", guess_max = 25000)
 
 iNatUY_GIS <- iNatUY %>%
-  mutate(yea = ubridate::year(observed_on)) %>%
-  filter(!captive_cultivate & coordinates_obscure == FALSE) %>%
+  mutate(year = lubridate::year(observed_on)) %>%
+  filter(!captive_cultivated & coordinates_obscured == FALSE) %>%
   filter(!is.na(taxon_species_name)) %>%
   select(observed_on, year,
-         scientifiName = cientific_name, class = taxon_class_name, order = axon_torder_name, family = taxon_family_name, genus = taxon_genus_name, species = axon_species_name,
-         decimalLatitude = latitude, decimalLongitude = longitude, coordinatePrecision = positional_accuracy, public_positional_accuracy, iconic_taxon_name) %>%
+         scientifiName = scientific_name, class = taxon_class_name,
+         order = taxon_order_name, family = taxon_family_name,
+         genus = taxon_genus_name, species = taxon_species_name,
+         decimalLatitude = latitude, decimalLongitude = longitude,
+         coordinatePrecision = positional_accuracy,
+         public_positional_accuracy,
+         iconic_taxon_name) %>%
   as.data.frame %>%
   sf::st_as_sf(coords = c("decimalLongitude", "decimalLatitude")) %>%
-  st_set_crs(4326) %>% st_transform(32721)
+  st_set_crs(4326) %>%
+  st_transform(32721)
 
 
-grid_iNatUY_GIS <- st_join(x = rid_Uruguay,
-                           y = iNatUY_GIS %>%
-                             select(species, class, family, year),
+grid_iNatUY_GIS <- st_join(x = grid_Uruguay,
+                           y = select(iNatUY_GIS, species, class, family, year),
                            left = TRUE, join = st_contains) %>%
   group_by(grid_ID) %>%
   summarise(spatialIntensity = ifelse(n_distinct(species, na.rm = TRUE) == 0, 0, n()),
@@ -56,30 +61,31 @@ grid_iNatUY_GIS <- st_join(x = rid_Uruguay,
          lastYearRecorded = rescale(lastYearRecorded, to = c(0, 1)),
          temporalIntensity = ifelse(temporalIntensity == 0, NA, rescale(temporalIntensity, to = c(0, 1))))
 
-# grid_iNatUY_GBIF_GIS <- st_join( = rid_Uruguay,
-#         = iNatUY_GBIF_GIS %>%
-#          select(species, class, family, iucnRedListCategory, year),
-#        lef = RUE, join = st_contains) %>%
-#   group_by(grid_ID) %>%
-#   summarise( = felse(n_distinct(species, na.rm = TRUE = 0, 0, n()),
-#             S = _distinct(species, na.rm = TRUE), .groups = "drop")
-
 grid_iNatUY_GIS %>% arrange((spatialIntensity))
-grid_iNatUy_GIS %>% mutate(lastYearRecorded = rescale(lastYearRecorded, to = c(0, 1))) %>% st_drop_geometry() %>% arrange((lastYearRecorded)) %>% print.data.frame()
+grid_iNatUY_GIS %>%
+  mutate(lastYearRecorded = rescale(lastYearRecorded, to = c(0, 1))) %>%
+  st_drop_geometry() %>%
+  arrange((lastYearRecorded)) %>%
+  print.data.frame()
 
-ggplot() +
-  #geom_sf(data = grid_iNatUY_GIS %>% mutate( = felse(spatialIntensit = 0, NA, rescale(spatialIntensity, to = c(0, 1)))), aes(fil = patialIntensity))
-  #geom_sf(data = grid_iNatUY_GIS %>% mutate( = felse(temporalIntensit = 0, NA, rescale(temporalIntensity, to = c(0, 1)))), aes(fil = emporalIntensity))
-  geom_sf(data = grid_iNatUY_GIS, aes(fill = temporalIntensity)) +
-  scale_fill_fermenter(palette = "Reds", na.value = "#ede8e8", n.breaks = 6) +
-  #scale_fill_fermenter(palette = Spectral",  na.valu = #ede8e8")+
+grid_iNatUY_GIS %>%
+  ggplot() +
+  aes(fill = temporalIntensity) +
+  geom_sf() +
+  scale_fill_fermenter(
+    palette = "Reds",
+    na.value = "#ede8e8",
+    n.breaks = 6
+    ) +
   geom_sf(data = Uruguay, color = "black", fill = NA) +
   theme_bw() +
   labs(fill = "Índice temporal\n(densidad de registros)")
 
 
-ggplot() +
-  geom_sf(data = grid_iNatUY_GIS, aes(fill = spatialIntensity)) +
+grid_iNatUY_GIS %>%
+  ggplot() +
+  aes(fill = spatialIntensity) +
+  geom_sf() +
   scale_fill_fermenter(palette = "Greens", na.value = "#ede8e8", n.breaks = 6) +
   geom_sf(data = Uruguay, color = "black", fill = NA) +
   theme_bw() +
@@ -93,10 +99,16 @@ ggplot() +
   labs(fill = "Índice temporal\n(año del último registro)")
 
 
-grid_iNatUY_GIS %>% mutate(index = temporalIntensity + spatialIntensity) %>%
+grid_iNatUY_GIS %>%
+  mutate(index = temporalIntensity + spatialIntensity) %>%
   ggplot() +
-  geom_sf(aes(fill = rescale(index, to = c(0, 1)))) +  #show.legend = F
-  scale_fill_fermenter(palette = "Spectral", direction = 1, na.value = "#ede8e8", n.breaks = 6) +
+  geom_sf(aes(fill = rescale(index, to = c(0, 1)))) +
+  scale_fill_fermenter(
+    palette = "Spectral",
+    direction = 1,
+    na.value = "#ede8e8",
+    n.breaks = 6
+    ) +
   geom_sf(data = Uruguay, colo = "black", fill = NA) +
   theme_bw() +
   labs(fill = "Prioridad de Observación")
@@ -104,8 +116,10 @@ grid_iNatUY_GIS %>% mutate(index = temporalIntensity + spatialIntensity) %>%
 #----------------------- FUNCIONES
 
 # Cálculo de "completeness"
-get_gridsCompleteness <- function(data_abundance){
-  GridSlope <- data.frame(Grid = integer(), Slope = numeric(), stringsAsFactors = FALSE)
+get_gridsCompleteness <- function(data_abundance) {
+  GridSlope <- data.frame(Grid = integer(),
+                          Slope = numeric(),
+                          stringsAsFactors = FALSE)
   data_abundance <- as.data.frame(data_abundance)
   data_abundance$abundance <- as.integer(1)
   cells <- unique(data_abundance$GridID)
@@ -135,30 +149,8 @@ get_temporalIsolation <- function(dataset){
       count(latlong) %>%
       distinct()
   }
-
-
-  isolated$isolation <- rescale(isolated$n, to = c(1,0))
+  isolated$isolation <- rescale(isolated$n, to = c(1, 0))
 
   isolation <- left_join(isolated, df, by = "latlong")
   return(isolation)
 }
-
-
-
-#----------------------- EXPLORACIÓN
-
-# Number of observations for each department (MAP)
-left_join(Uruguay %>% mutate(place_admin1_name = tolower(nombre)),
-          iNatUY %>%
-            group_by(place_admin1_name) %>%
-            count() %>%
-            mutate(place_admin1_name = stri_trans_general(tolower(place_admin1_name), id = "Latin-ASCII")),
-          by = "place_admin1_name") %>%
-  ggplot() +
-  geom_sf(aes(fill = n)) +
-  labs(x = "", y = "", fill = "Number of\nObservations") +
-  theme_bw() +
-  scale_fill_gradientn(colours = wesanderson::wes_palette("Zissou1", 10, type = "continuous")) +
-  theme(text = element_text(family = "Calibri"))
-  theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0)))
-
