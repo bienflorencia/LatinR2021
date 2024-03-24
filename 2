@@ -1,0 +1,11 @@
+library(tidyverse)
+library(sf)
+
+b <- read_sf('shape/sig_barrios.shp')
+
+# Grilla MVD ----
+grid_mvd <-
+  sf::st_make_grid(x = b, cellsize = 2500, square = F)  %>%
+  st_intersection(.,st_union(Uruguay)) %>%
+  st_as_sf() %>%
+  mutate(grid_ID = 1:nrow(.))

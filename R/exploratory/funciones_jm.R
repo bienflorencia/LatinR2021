@@ -117,37 +117,37 @@
 #' 1, 14, 13, 0, 25, 2, 4, 5, 5, 11, 2, 2, 0, 17, 6, 2, 3, 5, 7, 1, 4, 3, 2, 19,
 #' 2, 2, 6, 1, 1, 2, 1, 2, 1, 1, 4, 3, 0, 4, 3 )
 #'
-#' pal0 <- leaflet::colorQuantile("RdYlGn", vals, n = 9, 
+#' pal0 <- leaflet::colorQuantile("RdYlGn", vals, n = 9,
 #'                                na.color = "#4d0012", reverse = FALSE)
-#' 
+#'
 #' pal0(x)
 #'
-#' pal1 <- colorQuantile_jm("RdYlGn", vals, n = 9, 
+#' pal1 <- colorQuantile_jm("RdYlGn", vals, n = 9,
 #'                          na.color = "#4d0012", reverse = FALSE)
-#' 
+#'
 #' pal1(x)
 colorQuantile_jm <- function (palette, domain, n = 4,
-                              probs = seq(0, 1, length.out = n + 1), 
-                              na.color = "#808080", 
-                              alpha = FALSE, 
-                              reverse = FALSE, 
+                              probs = seq(0, 1, length.out = n + 1),
+                              na.color = "#808080",
+                              alpha = FALSE,
+                              reverse = FALSE,
                               right = FALSE) {
   if (!is.null(domain)) {
     bins <- quantile(domain, probs, na.rm = TRUE, names = FALSE)
     bins <- unique(bins)
     return(leaflet:::withColorAttr(
-      "quantile", 
+      "quantile",
       list(probs = probs, na.color = na.color),
-      leaflet::colorBin(palette, 
-                        domain = NULL, 
-                        bins = bins, 
-                        na.color = na.color, 
+      leaflet::colorBin(palette,
+                        domain = NULL,
+                        bins = bins,
+                        na.color = na.color,
                         alpha = alpha,
                         reverse = reverse)
     ))
   }
-  colorFunc <- leaflet::colorFactor(palette, domain = 1:(length(probs) - 1), 
-                                    na.color = na.color, alpha = alpha, 
+  colorFunc <- leaflet::colorFactor(palette, domain = 1:(length(probs) - 1),
+                                    na.color = na.color, alpha = alpha,
                                     reverse = reverse)
   leaflet:::withColorAttr(
     "quantile",
@@ -232,12 +232,13 @@ curva_acum_jm <- function(taxon_obs) {
 #' obs <- sample(letters, size = 100, replace = TRUE)
 #' sac <- get_acc(obs)
 #' s <- get_slope(sac)
-#' plot(sac, main = paste0('Acumulación de Riqueza de letras\n',
-#'                         'pendiente final: ', round(s, 3)))
+#' plot(sac, main = paste0("Acumulación de Riqueza de letras\n",
+#'                         "pendiente final: ", round(s, 3)))
 #' N <- length(sac$richness)
 #' emax <- sac$richness[N]
-#' abline(emax - s * N, s, col = 'red', lwd = 2)
-get_acc <- function(taxon_obs, method = 'exact') {
+#' abline(emax - s * N, s, col = "red", lwd = 2)
+get_acc <- function(taxon_obs, method = "exact") {
+  require(magrittr)
   N <- length(taxon_obs)
   K <- ceiling(N * .9)
   spmat <- tibble::tibble(plots = 1:N, taxon_obs = taxon_obs, n = 1L) %>%
@@ -264,21 +265,21 @@ get_acc <- function(taxon_obs, method = 'exact') {
 #' d %>%
 #'   group_by(grid_ID, iconic_taxon_name) %>%
 #'   summarise(slope = get_acc(species) %>% get_slope)
-#'   
+#'
 #' dacc <- d %>%
-#'   # filter(grid_ID %in% 1:2) %>% 
+#'   # filter(grid_ID %in% 1:2) %>%
 #'   group_by(grid_ID, iconic_taxon_name) %>%
 #'   nest() %>%
-#'   mutate(acc = purrr::map(data, function(x) get_acc(x$species))) %>% 
-#'   select(-data) %>% 
+#'   mutate(acc = purrr::map(data, function(x) get_acc(x$species))) %>%
+#'   select(-data) %>%
 #'   ungroup()
-#' filter(dacc, grid_ID == 3, iconic_taxon_name == 'C')$acc[[1]] %>% 
-#'   plot
+#' filter(dacc, grid_ID == 3, iconic_taxon_name == "C")$acc[[1]] %>%
+#'   plot()
 get_slope <- function(sac, last_perc = .1) {
   s <- sac$richness
   N <- length(s)
   K <- ceiling(N * (1 - last_perc))
-  out <- (s[N]- s[K]) / (N - K)
+  out <- (s[N] - s[K]) / (N - K)
   return(out)
 }
 
@@ -291,7 +292,7 @@ get_slope <- function(sac, last_perc = .1) {
 #' @export
 #'
 #' @examples
-#' nuevas_spp(c('a', 'c', 'f'), c('a', 'a', 'c', 'b', 'c'))
+#' nuevas_spp(c("a", "c", "f"), c("a", "a", "c", "b", "c"))
 nuevas_spp <- function(nuevas, viejas) {
   un <- unique(nuevas)
   uv <- unique(viejas)
@@ -312,42 +313,42 @@ nuevas_spp <- function(nuevas, viejas) {
 #'
 #' @examples
 mkpopup <- function(datos, grupo = "Todos") {
-  
+
   # grupos aceptados:
-  grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae", "Mollusca",
-            "Insecta", "Arachnida", "Fungi", "Reptilia", "Actinopterygii",
-            "Chromista", "Protozoa")
-  
-  if (!(tolower(grupo) %in% tolower(grac))) 
-    stop("grupo debe ser alguno de los aceptados:\n", 
-         stringr::str_wrap(paste(grac, collapse = ', '), 
+  grac <- c("Todos", "Aves", "Mammalia", "Amphibia", "Animalia", "Plantae",
+            "Mollusca", "Insecta", "Arachnida", "Fungi", "Reptilia",
+            "Actinopterygii", "Chromista", "Protozoa")
+
+  if (!(tolower(grupo) %in% tolower(grac)))
+    stop("grupo debe ser alguno de los aceptados:\n",
+         stringr::str_wrap(paste(grac, collapse = ", "),
                            80, indent = 2, exdent = 2))
 
-  grupo_html <- paste0("<strong>Grupo: </strong>", 
+  grupo_html <- paste0("<strong>Grupo: </strong>",
                        stringr::str_to_title(grupo),
                        "<br>")
-  
-  gr <- NULL
-  gr <- if (tolower(grupo) != 'todos') paste0('_', stringr::str_to_title(grupo))
 
-  cols_base <- c('grid_id', 'ranking', 'indice_prioridad', 'species_richness',
-                 'n_new_species_last_year', 'prop_new_species_last_year')
-  d <- sf::st_drop_geometry(datos)[c('grid_id', paste0(cols_base[-1], gr))]
+  gr <- NULL
+  gr <- if (tolower(grupo) != "todos") paste0("_", stringr::str_to_title(grupo))
+
+  cols_base <- c("grid_id", "ranking", "indice_prioridad", "species_richness",
+                 "n_new_species_last_year", "prop_new_species_last_year")
+  d <- sf::st_drop_geometry(datos)[c("grid_id", paste0(cols_base[-1], gr))]
   names(d) <- cols_base
-  
+
   out <- paste0(
     grupo_html,
-    "<strong>Grid ID: </strong>", 
-    d$grid_id, 
-    "<br><strong>Ranking: </strong>", 
+    "<strong>Grid ID: </strong>",
+    d$grid_id,
+    "<br><strong>Ranking: </strong>",
     replace_na(round(100 * d$ranking, 1), 0), "%",
-    "<br><strong>Índice de prioridad: </strong>", 
+    "<br><strong>Índice de prioridad: </strong>",
     replace_na(round(d$indice_prioridad, 2), 1),
-    "<br><strong>Especies registradas: </strong>", 
+    "<br><strong>Especies registradas: </strong>",
     d$species_richness,
     "<br><strong>Especies nuevas, en el último año: </strong>",
     d$n_new_species_last_year,
-    " (", round(100 * d$prop_new_species_last_year, 1), 
+    " (", round(100 * d$prop_new_species_last_year, 1),
     " %)")
   return(out)
 }
